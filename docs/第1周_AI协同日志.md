@@ -1,1 +1,95 @@
-﻿# 第 1 周 AI 协同日志- 团队：云购生活数据仓库项目组　成员：曲欣锋　填写日期：2026-10-30---## 一、使用的 AI 工具 / 模型- 工具名称：WorkBuddy（本地 Agent 工作台，可读写本机文件、执行命令）　模型版本：DeepSeek-V4.1-Flash- 辅助手段：联网检索（用于核对 Hive / Tez 参数默认值、winget 错误码 `0x80073D21` 的确切含义），不直接采信模型记忆中的版本号与默认值- 使用方式：由我提出任务与报错原文，AI 给出排查假设 + 可执行命令；我负责实际执行、回传结果、判断是否采纳---## 二、AI 协同记录表| 序号 | 提问 / 任务描述 | AI 产出摘要 | 人工修改与验证 | 是否采纳 ||------|----------------|-------------|----------------|----------|| 1 | Win10 1909 装不上 Docker Desktop，要求「保留所有程序和数据、只升级系统」 | 给出 1909 → 22H2 → Win11 的两段式升级路径；用 DISM 从 ESD 重建干净安装介质，并生成一键升级脚本（含磁盘空间闸门） | 前三次全部失败：`sources\setup.exe` 被 ESD Index 3 覆盖成 19041.1081，与周围 19041.1 文件混版导致 `0x7E`；改为只应用 Index 1 重建 `D:\Media3` 后成功。人工核对 build 18363.418 → 19045.2006 → 26300.9457，248 个程序与全部数据完好 | 是 || 2 | `apache/hive:4.0.0` 启动即退出，报 `ClassNotFoundException: com.mysql.cj.jdbc.Driver` | 判定官方镜像未内置 MySQL JDBC 驱动（非配置错误），给出下载 `mysql-connector-j-8.0.33.jar` 挂载到两个 Hive 容器 `/opt/hive/lib` 的方案 | 核对 jar 为 2,481,560 字节、文件头 `PK\x03\x04` 有效；重建容器后 metastore 由 unhealthy 转 healthy | 是 || 3 | 建表报 `/user/hive/warehouse/ydsh_ods.db is not a directory or unable to create one` | 定位为命名卷挂载点在容器内属 `root:root`，而 Hive 进程以 `hive`(uid 1000) 运行无写权限；给出 `chown -R hive:hive` | 容器内 `id` 确认 uid=1000，复测 `mkdir` 成功；重跑建表脚本，6 张 ODS 表全部建成 | 是 || 4 | `run_sql.sh` 报 `No FileSystem for scheme "C"` | 识别为 Git Bash（MSYS2）把 `/tmp/x.sql` 自动改写成 `C:/Program Files/Git/tmp/x.sql`，Hive 将 `C:` 当作文件系统协议；给出 `MSYS2_ARG_CONV_EXCL='*'` | 关闭路径转换后脚本正常执行；同一问题在 `$GetCurrent`、`robocopy /E` 上也复现过，确认为同一类坑 | 是 || 5 | 质检脚本报 `Counters limit exceeded: Too many counters: 121 max=120` | 第一版建议 `SET mapreduce.job.counters.max=4000`，第二版建议 beeline `--hiveconf` 注入 | 两条均实测无效：`set` 回读已是 4000，Tez 仍按 120 判定（`tez.local.mode=true` 下计数器上限在 HS2 启动时读取）。由 AI 改 `conf/hive-site.xml` 并挂载、重建后才真正生效 | 部分采纳（前两版方案无效，第三版有效） || 6 | `12_clean_duplicate.sql` 报 `expecting AS in cast expression` | 指出外层 `CAST(CASE ... END)` 缺少目标类型，而内层已转 DOUBLE，建议直接去掉外层 CAST | 按建议修改后脚本跑通：`ods_order` 15600 → 15000，正好去掉 600 条重复，`remain_dup = 0`。该错误是交付包原有脚本里的真实 bug，不实际运行发现不了 | 是 || 7 | 6 个 CSV 能否直接 `LOAD DATA` 进 Hive | 检查后判断文件为 UTF-8 **BOM + 100% CRLF**，直接装载会把 `\r` 写进每行最后一列且**不报错**，建议先去 BOM、转 LF | 规范化后装载，6 张表行数 1000/600/60/15600/37549/60000 全部与数据字典一致；抽样验证 `instr(email,'\r')` 全为 0、`length(email)` 正常 | 是 || 8 | 清理 `C:\Windows.old`（C 盘只剩 12 GB） | 最初建议 `rd /s /q` 直接删除；经要求改用 `cleanmgr` 官方处理器，定向只开「以前的 Windows 安装 / 升级日志 / 已丢弃文件 / 临时安装文件」四项 | 方案被否后改为官方流程执行成功；但实际只回收 **18.5 GB**，而非脚本标注的 31.45 GB——原数字是逐文件累加，`Windows.old` 有大量文件与 `WinSxS` 是硬链接，同块数据被重复计数 | 否（删除方式被否）；后续对差额原因的解释被采纳 || 9 | 按真实运行结果填写《数据质量预评估表》 | 执行 `10_quality_assessment.sql` 生成 39 项检查，把数值、优先级、清洗前后对比写入表格 | 逐项核对行数与比率，并把 `ods_order.channel` 写法混乱 48.61% 定为下周最高优先级（AI 原排序未突出此项，由人工调整） | 是（结论排序经人工修改） |> 说明：以上 9 条均为本周真实发生，涉及的命令、报错原文与最终数值都可以在 `docs/环境搭建笔记.md`、`docs/数据质量预评估表.md` 中复现。---## 三、AI 产出成果清单- **由 AI 生成的内容**：  - `docker-compose.yml`（含端口 3307 映射、JDBC 驱动挂载、hive-site 挂载）、`conf/hive-site.xml`  - `sql/ods/01_create_ods_tables.sql`、`02_load_data.sql`、`03_check_rowcount.sql`  - `sql/clean/10_quality_assessment.sql`、`11_clean_missing_value.sql`、`12_clean_duplicate.sql`、`13_verify_cleaning.sql`  - `scripts/run_sql.sh`、`scripts/import_ods.sh`  - `docs/环境搭建笔记.md`、`docs/数据质量预评估表.md` 的框架与文字初稿- **由人工编写的内容**：  - `README.md` 的团队信息、目标范围与技术栈表述  - `docs/答辩提纲.md`  - 清洗口径决策：年龄用均值填充、邮箱保留 `unknown@` 空值标记而非删除、去重保留最新版本而非随机留一条  - 下周优先级判断（`channel` 归一化排第一）- **人机协作完成的内容**：  - ODS 建表语句：AI 起草，人工按《模拟数据字典》逐字段核对类型与注释（贴源层统一 STRING）  - 数据质量结论：AI 出量化数据，人工判断业务影响与处理顺序  - 提交清单与本文档：AI 填充，人工核对后定稿---## 四、问题与解决- **遇到的问题**（本周共 8 类，均已记录到环境笔记）：| 问题 | 根因 | 解决方式 ||---|---|---|| Docker Desktop 无法安装 | Win10 1909 低于最低要求 19045 | 两段式升级到 Win11 26H2 || 升级介质 `0x8007007E` | `sources\setup.exe` 被 ESD Index 3 覆盖成 19041.1081，其余文件为 19041.1 | 用 DISM 只应用 Index 1 重建介质 || Hive metastore 起不来 | 官方镜像缺 MySQL JDBC 驱动 | 挂载 `mysql-connector-j-8.0.33.jar` || 建表无权限 | 命名卷属主 `root:root`，Hive 以 uid 1000 运行 | `chown -R hive:hive` || `No FileSystem for scheme "C"` | MSYS2 路径自动转换 | `MSYS2_ARG_CONV_EXCL='*'` || Tez 计数器超限 121>120 | 单条 INSERT 含 8 个 `UNION ALL`，MR 默认上限 120 | 改 `hive-site.xml`（会话级 SET 与 `--hiveconf` 均无效） || HS2 启动崩溃 `WstxParsingException` | XML 注释中写了 `--hiveconf`，而 XML 注释不允许出现 `--` | 改写注释措辞 || 6 个 CSV 末列被污染 | UTF-8 BOM + CRLF，`LOAD DATA` 不报错但把 `\r` 读入最后一列 | 去 BOM、转 LF 后装载 |- **AI 是否有效解决**：9 条协同记录中 **7 条完全有效**、**1 条部分有效**（Tez 计数器，前两版方案实测无效）、**1 条方案被否**（`Windows.old` 用 `rd /s /q` 硬删，改为官方 `cleanmgr` 流程）。- **最终如何解决**：靠「AI 给假设 → 我执行 → 回传真实报错 → 再修正」的闭环。凡是涉及运行时行为的（参数是否生效、权限是否够、末列是否被污染），一律以实测输出为准，不接受模型的口头结论。---## 五、反思与总结- **AI 协同带来的价值**：  1. 把「查报错 → 试参数 → 再查」的循环从小时级压缩到分钟级，本周 8 个问题里有 5 个在 10 分钟内定位到根因。  2. 能跨层串起来排障——从 Windows 引导、WSL、Docker 到 Hive on Tez，这些层平时单独学都要很久，AI 能快速指出「这层不用看，问题在下一层」。  3. 把重复性劳动吃掉：一键脚本、建表语句、质检 SQL 的骨架，人工只需核对与调整口径。- **AI 的局限与风险**：  1. **会给看似合理的错误方案**：Tez 计数器上连给两版无效参数，且两版都「回读成功」，只有实际跑 SQL 才暴露。这类错误比明显报错更危险。  2. **数字不能直接信**：`Windows.old` 标注 31.45 GB，实际只回收 18.5 GB（硬链接重复计数）；镜像包大小、进度百分比也出现过偏差。  3. **版本号与默认值容易说错**：曾把商店版 WSL 说成 3.0.3.0（实际 3.0.1.0）、把镜像源正常返回的 `401` 当成不可用。必须自己复核。  4. **过度干预的风险**：清理磁盘时最初建议 `rd /s /q`，还有一次用 `icacls /T` 处理 53 万个文件跑了一小时且反而吞掉 1.65 GB。破坏性操作必须由人确认方式。- **本次协作中我的能力提升**：  1. 学会了用**可验证手段**校验 AI 结论：行数 diff、`instr(col,'\r')` 查污染、`docker inspect` 查挂载属主、计数器报错原文定位参数层级。  2. 理解了几处平时不会碰的机制：ESD 多索引与安装介质结构、Appx 默认安装卷对 Store 应用的限制、Tez `local.mode` 下配置的读取时机、XML 注释的 `--` 限制。  3. 建立了一条习惯：**给 AI 完整报错原文比自己复述有效得多**，复述常丢掉关键的错误码与类名。- **对 AI 协同的改进建议**：  1. 把 AI 定位成「提出假设的助手」而非「给答案的人」，每个结论都要落到一条可复现的命令上。  2. 破坏性操作（删目录、改注册表、清系统文件）坚持要 AI 先给方案和风险，由人拍板，不用「一键脚本」代替判断。  3. 分工上让 AI 做「广度」（铺技术栈、列排查路径）和「重复劳动」，人做「深度」（业务口径、数据含义、优先级判断）——本周 `channel` 48.61% 该不该排第一，AI 判断不了，得看业务。  4. 建议在日志里固定记录「未采纳」的条目，这类记录比采纳的更能说明是否真的在思考。
+# 第 1 周 AI 协同日志
+
+- 团队：云购生活数据仓库项目组　成员：曲欣锋　填写日期：2026-10-30
+
+---
+
+## 一、使用的 AI 工具 / 模型
+
+- 工具名称：WorkBuddy（本地 Agent 工作台，可读写本机文件、执行命令）　模型版本：DeepSeek-V4.1-Flash
+- 辅助手段：联网检索（用于核对 Hive / Tez 参数默认值、winget 错误码 `0x80073D21` 的确切含义），不直接采信模型记忆中的版本号与默认值
+- 使用方式：由我提出任务与报错原文，AI 给出排查假设 + 可执行命令；我负责实际执行、回传结果、判断是否采纳
+
+---
+
+## 二、AI 协同记录表
+
+| 序号 | 提问 / 任务描述 | AI 产出摘要 | 人工修改与验证 | 是否采纳 |
+|------|----------------|-------------|----------------|----------|
+| 1 | Win10 1909 装不上 Docker Desktop，要求「保留所有程序和数据、只升级系统」 | 给出 1909 → 22H2 → Win11 的两段式升级路径；用 DISM 从 ESD 重建干净安装介质，并生成一键升级脚本（含磁盘空间闸门） | 前三次全部失败：`sources\setup.exe` 被 ESD Index 3 覆盖成 19041.1081，与周围 19041.1 文件混版导致 `0x7E`；改为只应用 Index 1 重建 `D:\Media3` 后成功。人工核对 build 18363.418 → 19045.2006 → 26300.9457，248 个程序与全部数据完好 | 是 |
+| 2 | `apache/hive:4.0.0` 启动即退出，报 `ClassNotFoundException: com.mysql.cj.jdbc.Driver` | 判定官方镜像未内置 MySQL JDBC 驱动（非配置错误），给出下载 `mysql-connector-j-8.0.33.jar` 挂载到两个 Hive 容器 `/opt/hive/lib` 的方案 | 核对 jar 为 2,481,560 字节、文件头 `PK\x03\x04` 有效；重建容器后 metastore 由 unhealthy 转 healthy | 是 |
+| 3 | 建表报 `/user/hive/warehouse/ydsh_ods.db is not a directory or unable to create one` | 定位为命名卷挂载点在容器内属 `root:root`，而 Hive 进程以 `hive`(uid 1000) 运行无写权限；给出 `chown -R hive:hive` | 容器内 `id` 确认 uid=1000，复测 `mkdir` 成功；重跑建表脚本，6 张 ODS 表全部建成 | 是 |
+| 4 | `run_sql.sh` 报 `No FileSystem for scheme "C"` | 识别为 Git Bash（MSYS2）把 `/tmp/x.sql` 自动改写成 `C:/Program Files/Git/tmp/x.sql`，Hive 将 `C:` 当作文件系统协议；给出 `MSYS2_ARG_CONV_EXCL='*'` | 关闭路径转换后脚本正常执行；同一问题在 `$GetCurrent`、`robocopy /E` 上也复现过，确认为同一类坑 | 是 |
+| 5 | 质检脚本报 `Counters limit exceeded: Too many counters: 121 max=120` | 第一版建议 `SET mapreduce.job.counters.max=4000`，第二版建议 beeline `--hiveconf` 注入 | 两条均实测无效：`set` 回读已是 4000，Tez 仍按 120 判定（`tez.local.mode=true` 下计数器上限在 HS2 启动时读取）。由 AI 改 `conf/hive-site.xml` 并挂载、重建后才真正生效 | 部分采纳（前两版方案无效，第三版有效） |
+| 6 | `12_clean_duplicate.sql` 报 `expecting AS in cast expression` | 指出外层 `CAST(CASE ... END)` 缺少目标类型，而内层已转 DOUBLE，建议直接去掉外层 CAST | 按建议修改后脚本跑通：`ods_order` 15600 → 15000，正好去掉 600 条重复，`remain_dup = 0`。该错误是交付包原有脚本里的真实 bug，不实际运行发现不了 | 是 |
+| 7 | 6 个 CSV 能否直接 `LOAD DATA` 进 Hive | 检查后判断文件为 UTF-8 **BOM + 100% CRLF**，直接装载会把 `\r` 写进每行最后一列且**不报错**，建议先去 BOM、转 LF | 规范化后装载，6 张表行数 1000/600/60/15600/37549/60000 全部与数据字典一致；抽样验证 `instr(email,'\r')` 全为 0、`length(email)` 正常 | 是 |
+| 8 | 清理 `C:\Windows.old`（C 盘只剩 12 GB） | 最初建议 `rd /s /q` 直接删除；经要求改用 `cleanmgr` 官方处理器，定向只开「以前的 Windows 安装 / 升级日志 / 已丢弃文件 / 临时安装文件」四项 | 方案被否后改为官方流程执行成功；但实际只回收 **18.5 GB**，而非脚本标注的 31.45 GB——原数字是逐文件累加，`Windows.old` 有大量文件与 `WinSxS` 是硬链接，同块数据被重复计数 | 否（删除方式被否）；后续对差额原因的解释被采纳 |
+| 9 | 按真实运行结果填写《数据质量预评估表》 | 执行 `10_quality_assessment.sql` 生成 39 项检查，把数值、优先级、清洗前后对比写入表格 | 逐项核对行数与比率，并把 `ods_order.channel` 写法混乱 48.61% 定为下周最高优先级（AI 原排序未突出此项，由人工调整） | 是（结论排序经人工修改） |
+
+> 说明：以上 9 条均为本周真实发生，涉及的命令、报错原文与最终数值都可以在 `docs/环境搭建笔记.md`、`docs/数据质量预评估表.md` 中复现。
+
+---
+
+## 三、AI 产出成果清单
+
+- **由 AI 生成的内容**：
+  - `docker-compose.yml`（含端口 3307 映射、JDBC 驱动挂载、hive-site 挂载）、`conf/hive-site.xml`
+  - `sql/ods/01_create_ods_tables.sql`、`02_load_data.sql`、`03_check_rowcount.sql`
+  - `sql/clean/10_quality_assessment.sql`、`11_clean_missing_value.sql`、`12_clean_duplicate.sql`、`13_verify_cleaning.sql`
+  - `scripts/run_sql.sh`、`scripts/import_ods.sh`
+  - `docs/环境搭建笔记.md`、`docs/数据质量预评估表.md` 的框架与文字初稿
+- **由人工编写的内容**：
+  - `README.md` 的团队信息、目标范围与技术栈表述
+  - `docs/答辩提纲.md`
+  - 清洗口径决策：年龄用均值填充、邮箱保留 `unknown@` 空值标记而非删除、去重保留最新版本而非随机留一条
+  - 下周优先级判断（`channel` 归一化排第一）
+- **人机协作完成的内容**：
+  - ODS 建表语句：AI 起草，人工按《模拟数据字典》逐字段核对类型与注释（贴源层统一 STRING）
+  - 数据质量结论：AI 出量化数据，人工判断业务影响与处理顺序
+  - 提交清单与本文档：AI 填充，人工核对后定稿
+
+---
+
+## 四、问题与解决
+
+- **遇到的问题**（本周共 8 类，均已记录到环境笔记）：
+
+| 问题 | 根因 | 解决方式 |
+|---|---|---|
+| Docker Desktop 无法安装 | Win10 1909 低于最低要求 19045 | 两段式升级到 Win11 26H2 |
+| 升级介质 `0x8007007E` | `sources\setup.exe` 被 ESD Index 3 覆盖成 19041.1081，其余文件为 19041.1 | 用 DISM 只应用 Index 1 重建介质 |
+| Hive metastore 起不来 | 官方镜像缺 MySQL JDBC 驱动 | 挂载 `mysql-connector-j-8.0.33.jar` |
+| 建表无权限 | 命名卷属主 `root:root`，Hive 以 uid 1000 运行 | `chown -R hive:hive` |
+| `No FileSystem for scheme "C"` | MSYS2 路径自动转换 | `MSYS2_ARG_CONV_EXCL='*'` |
+| Tez 计数器超限 121>120 | 单条 INSERT 含 8 个 `UNION ALL`，MR 默认上限 120 | 改 `hive-site.xml`（会话级 SET 与 `--hiveconf` 均无效） |
+| HS2 启动崩溃 `WstxParsingException` | XML 注释中写了 `--hiveconf`，而 XML 注释不允许出现 `--` | 改写注释措辞 |
+| 6 个 CSV 末列被污染 | UTF-8 BOM + CRLF，`LOAD DATA` 不报错但把 `\r` 读入最后一列 | 去 BOM、转 LF 后装载 |
+
+- **AI 是否有效解决**：9 条协同记录中 **7 条完全有效**、**1 条部分有效**（Tez 计数器，前两版方案实测无效）、**1 条方案被否**（`Windows.old` 用 `rd /s /q` 硬删，改为官方 `cleanmgr` 流程）。
+- **最终如何解决**：靠「AI 给假设 → 我执行 → 回传真实报错 → 再修正」的闭环。凡是涉及运行时行为的（参数是否生效、权限是否够、末列是否被污染），一律以实测输出为准，不接受模型的口头结论。
+
+---
+
+## 五、反思与总结
+
+- **AI 协同带来的价值**：
+  1. 把「查报错 → 试参数 → 再查」的循环从小时级压缩到分钟级，本周 8 个问题里有 5 个在 10 分钟内定位到根因。
+  2. 能跨层串起来排障——从 Windows 引导、WSL、Docker 到 Hive on Tez，这些层平时单独学都要很久，AI 能快速指出「这层不用看，问题在下一层」。
+  3. 把重复性劳动吃掉：一键脚本、建表语句、质检 SQL 的骨架，人工只需核对与调整口径。
+
+- **AI 的局限与风险**：
+  1. **会给看似合理的错误方案**：Tez 计数器上连给两版无效参数，且两版都「回读成功」，只有实际跑 SQL 才暴露。这类错误比明显报错更危险。
+  2. **数字不能直接信**：`Windows.old` 标注 31.45 GB，实际只回收 18.5 GB（硬链接重复计数）；镜像包大小、进度百分比也出现过偏差。
+  3. **版本号与默认值容易说错**：曾把商店版 WSL 说成 3.0.3.0（实际 3.0.1.0）、把镜像源正常返回的 `401` 当成不可用。必须自己复核。
+  4. **过度干预的风险**：清理磁盘时最初建议 `rd /s /q`，还有一次用 `icacls /T` 处理 53 万个文件跑了一小时且反而吞掉 1.65 GB。破坏性操作必须由人确认方式。
+
+- **本次协作中我的能力提升**：
+  1. 学会了用**可验证手段**校验 AI 结论：行数 diff、`instr(col,'\r')` 查污染、`docker inspect` 查挂载属主、计数器报错原文定位参数层级。
+  2. 理解了几处平时不会碰的机制：ESD 多索引与安装介质结构、Appx 默认安装卷对 Store 应用的限制、Tez `local.mode` 下配置的读取时机、XML 注释的 `--` 限制。
+  3. 建立了一条习惯：**给 AI 完整报错原文比自己复述有效得多**，复述常丢掉关键的错误码与类名。
+
+- **对 AI 协同的改进建议**：
+  1. 把 AI 定位成「提出假设的助手」而非「给答案的人」，每个结论都要落到一条可复现的命令上。
+  2. 破坏性操作（删目录、改注册表、清系统文件）坚持要 AI 先给方案和风险，由人拍板，不用「一键脚本」代替判断。
+  3. 分工上让 AI 做「广度」（铺技术栈、列排查路径）和「重复劳动」，人做「深度」（业务口径、数据含义、优先级判断）——本周 `channel` 48.61% 该不该排第一，AI 判断不了，得看业务。
+  4. 建议在日志里固定记录「未采纳」的条目，这类记录比采纳的更能说明是否真的在思考。
