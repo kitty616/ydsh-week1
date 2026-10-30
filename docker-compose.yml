@@ -1,0 +1,104 @@
+services:
+
+  # ---------------------------------------------------------------
+  # MySQL：Hive Metastore 元数据库（后续也可用于维度表 / ADS 结果回写）
+  # ---------------------------------------------------------------
+  mysql:
+    image: mysql:8.0
+    container_name: ydsh-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: metastore
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-authentication-plugin=mysql_native_password
+    ports:
+      # 宿主机 3306 已被本机 MySQL80 服务占用，这里改用 3307 映射以避免冲突。
+      # 容器内部端口不变（仍是 3306），Hive 的 jdbc:mysql://mysql:3306 不受影响。
+      # 从 Windows 用客户端连接时请用 127.0.0.1:3307。
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  # ---------------------------------------------------------------
+  # Hive Metastore：元数据服务，必须先于 HiveServer2 就绪
+  # ---------------------------------------------------------------
+  hive-metastore:
+    image: apache/hive:4.0.0
+    container_name: ydsh-hive-metastore
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SERVICE_NAME: metastore
+      DB_DRIVER: mysql
+      # 首次启动会执行 schematool -initSchema 初始化元数据表
+      IS_RESUME: "false"
+      SERVICE_OPTS: >-
+        -Djavax.jdo.option.ConnectionDriverName=com.mysql.cj.jdbc.Driver
+        -Djavax.jdo.option.ConnectionURL=jdbc:mysql://mysql:3306/metastore?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8
+        -Djavax.jdo.option.ConnectionUserName=root
+        -Djavax.jdo.option.ConnectionPassword=root
+        -Dmetastore.warehouse.dir=/user/hive/warehouse
+    ports:
+      - "9083:9083"
+    volumes:
+      - ./data:/data
+      # 官方 apache/hive:4.0.0 镜像未内置 MySQL JDBC 驱动，
+      # 不挂载会报 ClassNotFoundException: com.mysql.cj.jdbc.Driver
+      - ./lib/mysql-connector-j-8.0.33.jar:/opt/hive/lib/mysql-connector-j-8.0.33.jar
+      - hive_warehouse:/user/hive/warehouse
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/9083' || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  # ---------------------------------------------------------------
+  # HiveServer2：对外提供 JDBC / beeline 服务（端口 10000）
+  # ---------------------------------------------------------------
+  hive-server:
+    image: apache/hive:4.0.0
+    container_name: ydsh-hive-server
+    restart: unless-stopped
+    depends_on:
+      hive-metastore:
+        condition: service_healthy
+    environment:
+      SERVICE_NAME: hiveserver2
+      IS_RESUME: "false"
+      SERVICE_OPTS: >-
+        -Dhive.metastore.uris=thrift://hive-metastore:9083
+        -Dhive.server2.enable.doAs=false
+        -Dhive.server2.thrift.http.port=10001
+    ports:
+      - "10000:10000"   # beeline / JDBC
+      - "10002:10002"   # HiveServer2 Web UI
+    volumes:
+      - ./data:/data
+      - ./lib/mysql-connector-j-8.0.33.jar:/opt/hive/lib/mysql-connector-j-8.0.33.jar
+      # 覆盖默认 hive-site.xml，把 Tez/MR 计数器上限从 120 调大到 4000，
+      # 否则 10_quality_assessment.sql 会报 Too many counters: 121 max=120
+      - ./conf/hive-site.xml:/opt/hive/conf/hive-site.xml:ro
+      - hive_warehouse:/user/hive/warehouse
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/10000' || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 90s
+
+volumes:
+  mysql_data:
+  hive_warehouse:

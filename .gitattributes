@@ -1,0 +1,15 @@
+# 统一换行符策略，避免跨平台克隆后脚本无法执行
+* text=auto eol=lf
+
+# Shell / SQL 必须保持 LF，否则在 Linux 容器里会报 bad interpreter
+*.sh   text eol=lf
+*.sql  text eol=lf
+
+# Windows 批处理必须保持 CRLF
+*.bat  text eol=crlf
+
+# 二进制文件不做换行符转换
+*.jar  binary
+*.docx binary
+*.xlsx binary
+*.csv  binary
