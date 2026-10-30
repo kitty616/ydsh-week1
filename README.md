@@ -70,7 +70,12 @@
 ydsh_week1/
 ├── README.md                      # 本文件：团队信息、目标、执行手册
 ├── .gitignore                     # 忽略数据/日志/密钥
+├── .gitattributes                 # 换行符策略（.sh/.sql 强制 LF）
 ├── docker-compose.yml             # Hive + MySQL 一键编排
+├── conf/
+│   └── hive-site.xml              # HiveServer2 配置（Tez 计数器上限等）
+├── lib/
+│   └── mysql-connector-j-8.0.33.jar   # 官方 Hive 镜像缺失的 JDBC 驱动
 ├── data/                          # 6 张 CSV 放这里（不入库）
 │   └── README.md
 ├── sql/
@@ -89,7 +94,11 @@ ydsh_week1/
 │   └── run_sql.sh                 # 一键执行任意 SQL 文件
 └── docs/
     ├── 环境搭建笔记.md              # 交付物 2
-    └── 数据质量预评估表.md          # 交付物 5
+    ├── 数据质量预评估表.md          # 交付物 5
+    ├── 验收证据.md                  # 答辩用实测输出汇总
+    ├── 答辩提纲.md                  # 汇报结构 + 8 个高频问答
+    ├── 第1周_AI协同日志.md           # AI 协同记录（9 条）
+    └── 第1周作业任务与提交清单（已填写）.docx
 ```
 
 ---
@@ -182,14 +191,17 @@ bash scripts/run_sql.sh sql/clean/13_verify_cleaning.sql
 
 ## 九、第 1 周交付物核对
 
-| 序号 | 交付物 | 对应文件 | 状态 |
-|---|---|---|---|
-| 1 | README.md | `README.md` | □ |
-| 2 | 环境搭建笔记 | `docs/环境搭建笔记.md` | □ |
-| 3 | Git 仓库（含提交历史） | `.gitignore` + 提交记录 | □ |
-| 4 | ODS 建表与导入脚本 | `sql/ods/` | □ |
-| 5 | 数据质量预评估表 | `docs/数据质量预评估表.md` | □ |
-| 6 | 缺失值 / 重复值处理脚本 | `sql/clean/` | □ |
+| 序号 | 交付物 | 对应文件 | 状态 | 验收依据 |
+|---|---|---|---|---|
+| 1 | README.md | `README.md` | ✅ | 团队信息、执行手册、命名与提交规范齐备 |
+| 2 | 环境搭建笔记 | `docs/环境搭建笔记.md` | ✅ | 含 8 类真实问题的「现象→排查→根因→方案」 |
+| 3 | Git 仓库（含提交历史） | `.gitignore` `.gitattributes` + 提交记录 | ✅ | 已推送 <https://github.com/kitty616/ydsh-week1>，22 个文件 |
+| 4 | ODS 建表与导入脚本 | `sql/ods/` | ✅ | 6 张表行数 114,809 / 114,809，差值全 0 |
+| 5 | 数据质量预评估表 | `docs/数据质量预评估表.md` | ✅ | 37 项检查、22 项检出问题，数值取自 `dq_report` |
+| 6 | 缺失值 / 重复值处理脚本 | `sql/clean/` | ✅ | 去重 15,600 → 15,000，`remain_dup = 0` |
+| 附 | 验收证据 | `docs/验收证据.md` | ✅ | 答辩用实测命令回显汇总 |
+| 附 | 答辩提纲 | `docs/答辩提纲.md` | ✅ | 汇报结构 + 5 张必备图 + 8 个高频问答 |
+| 附 | AI 协同日志 | `docs/第1周_AI协同日志.md` | ✅ | 9 条协同记录（含 1 条部分采纳、1 条方案被否） |
 
 ---
 
