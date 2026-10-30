@@ -35,6 +35,9 @@ build/
 .DS_Store
 Thumbs.db
 
+# ===== 生成中间产物 =====
+*.ref/
+
 # ===== Docker 持久化卷 =====
 mysql_data/
 hive_warehouse/
