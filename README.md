@@ -1,6 +1,6 @@
 # 云购生活 · 企业级数据仓库与经营分析可视化系统
 
-> 第 1 周交付物 · 项目启动 / 环境搭建 / Git 基础 / 数据导入与数据清洗（一）
+> 第 1–2 周交付物 · 环境搭建 / 数据导入 / 数据清洗（一）（二）/ Hive 四层数仓建模 / 探索性分析
 > 课程：企业项目实战实训 ｜ 数据科学与大数据技术（本科）
 
 ---
@@ -26,13 +26,25 @@
 
 ---
 
-## 二、项目目标（第 1 周范围）
+## 二、项目目标
+
+### 第 1 周
 
 1. 完成 Docker + Hive + MySQL 本地环境搭建，服务可连通
 2. 完成 Git 仓库初始化与团队协作规范落地
 3. 将 6 张 CSV 模拟数据导入 Hive ODS 贴源层，行数校验通过
 4. 从完整性、唯一性、有效性、一致性、准确性五个维度完成数据质量预评估
 5. 完成数据清洗（一）：缺失值诊断与处理、重复值检测与去重
+
+### 第 2 周
+
+1. 完成数据清洗（二）：枚举字段标准化、异常值处理、日期/手机号格式统一
+2. 完成字段拆分合并（`order_timestamp`、`region`）与编码映射表建设
+3. 产出《数据质量清洗报告》，统计五类脏数据修复率
+4. 设计 ODS → DWD → DWS → ADS 四层架构并绘制架构图
+5. 完成 DWD 星型模型建模：订单事实表 + 4 张维度表 + 5 张码表
+6. 完成分区表（按 `order_date` 366 个分区）与分桶表（`user_id` 8 桶）
+7. 基于 DWD 完成探索性分析，产出《探索性分析简报》
 
 ---
 
@@ -88,14 +100,29 @@ ydsh_week1/
 │       ├── 10_quality_assessment.sql  # 五维度质量预评估
 │       ├── 11_clean_missing_value.sql # 缺失值处理
 │       ├── 12_clean_duplicate.sql     # 重复值去重
-│       └── 13_verify_cleaning.sql     # 清洗结果验证
+│       ├── 13_verify_cleaning.sql     # 清洗结果验证
+│       ├── 20_enum_standardize.sql    # 【第2周】枚举字段标准化
+│       ├── 21_abnormal_format.sql     # 【第2周】异常值与格式标准化
+│       ├── 22_split_merge_map.sql     # 【第2周】字段合并与编码映射
+│       └── 23_quality_compare.sql     # 【第2周】清洗前后修复率统计
+│   └── dwd/
+│       ├── 30_create_dim_tables.sql   # 【第2周】4 张维度表 + dim_date
+│       ├── 31_create_fact_order.sql   # 【第2周】订单事实表（分区）+ 分桶表
+│       ├── 32_load_dwd.sql            # 【第2周】DWD 层加载
+│       ├── 33_load_dws.sql            # 【第2周】DWS 汇总层
+│       └── 40_eda.sql                 # 【第2周】探索性分析 + ADS 指标表
 ├── scripts/
 │   ├── import_ods.sh              # 一键导入 ODS
 │   └── run_sql.sh                 # 一键执行任意 SQL 文件
 └── docs/
+    ├── images/
+    │   └── 数仓架构图.svg           # 【第2周】四层架构图
     ├── 环境搭建笔记.md              # 交付物 2
     ├── 数据质量预评估表.md          # 交付物 5（Markdown 版）
     ├── 数据质量预评估表.xlsx        # 交付物 5（Excel 版，三张工作表）
+    ├── 数据质量清洗报告.md          # 【第2周】五类脏数据修复率
+    ├── 数仓架构设计.md              # 【第2周】四层架构 + 命名规范
+    ├── 探索性分析简报.md            # 【第2周】KPI + 分层 + 分布
     ├── 验收证据.md                  # 答辩用实测输出汇总
     ├── 答辩提纲.md                  # 汇报结构 + 8 个高频问答
     ├── 第1周_AI协同日志.md           # AI 协同记录（9 条）
@@ -157,6 +184,40 @@ bash scripts/run_sql.sh sql/clean/13_verify_cleaning.sql
 - `dwd_order.order_id` 无重复
 - 去重前后行数差 ≈ 预评估阶段发现的重复订单数（约 600）
 
+### 步骤 6：第 2 周 —— 清洗（二）+ 四层建模 + 探索性分析
+
+```bash
+# 6.1 数据清洗（二）：枚举标准化 → 异常与格式 → 合并与编码映射
+bash scripts/run_sql.sh sql/clean/20_enum_standardize.sql
+bash scripts/run_sql.sh sql/clean/21_abnormal_format.sql
+bash scripts/run_sql.sh sql/clean/22_split_merge_map.sql
+
+# 6.2 质量对比（生成《数据质量清洗报告》的全部数据）
+bash scripts/run_sql.sh sql/clean/23_quality_compare.sql
+
+# 6.3 四层建模：维度表 → 事实表 → 加载 → DWS 汇总
+bash scripts/run_sql.sh sql/dwd/30_create_dim_tables.sql
+bash scripts/run_sql.sh sql/dwd/31_create_fact_order.sql
+bash scripts/run_sql.sh sql/dwd/32_load_dwd.sql
+bash scripts/run_sql.sh sql/dwd/33_load_dws.sql
+
+# 6.4 探索性分析 + ADS 指标表
+bash scripts/run_sql.sh sql/dwd/40_eda.sql
+```
+
+**校验标准**：
+
+| 检查项 | 期望值 |
+|---|---|
+| 枚举收敛 | gender 8→3、member_level 12→4、order_status 12→5、behavior_type 10→4 |
+| 清洗后行数 | 订单 15,600→14,398、明细 37,549→34,580 |
+| 维度表 | `dim_user` 1,000 / `dim_product` 600 / `dim_store` 60 / `dim_date` 366 |
+| 事实表分区 | 366 个日分区（2024-01-01 ~ 2024-12-31） |
+| 分桶文件 | `dwd_order_bucket` 8 个桶文件 |
+| 外键完整性 | 孤儿 user_id = 0、孤儿 store_id = 0 |
+| 三层 GMV 对账 | 事实表 = 日汇总 = 门店汇总 = 36,116,687.06 |
+| 整体修复率 | 99.73%（70,979 → 193，残留为有意保留的邮箱空值） |
+
 ---
 
 ## 七、命名规范
@@ -164,7 +225,11 @@ bash scripts/run_sql.sh sql/clean/13_verify_cleaning.sql
 | 层级 | 数据库 | 说明 |
 |---|---|---|
 | ODS | `ydsh_ods` | 贴源层，与 CSV 一一对应，不做加工 |
-| DWD | `ydsh_dwd` | 明细层，本周产出 `dwd_user` / `dwd_product` / `dwd_order` |
+| DWD | `ydsh_dwd` | 明细层，清洗后表 `dwd_*_clean` + 维度表 `dim_*` + 事实表 `dwd_order` |
+| DWS | `ydsh_dws` | 汇总层，`dws_daily_sales` / `dws_store_sales` / `dws_category_sales` |
+| ADS | `ydsh_ads` | 应用层，5 张指标表直接供看板与简报取数 |
+
+> 注：第一周的 `dwd_user` / `dwd_product` / `dwd_order` 为分步清洗的中间结果，作为第一周验收证据保留；第 2 周起以 `dwd_*_clean` 与 `dim_*` 为准，详见 `docs/数仓架构设计.md` 第五章。
 
 | 对象 | 规范 | 示例 |
 |---|---|---|
@@ -206,6 +271,19 @@ bash scripts/run_sql.sh sql/clean/13_verify_cleaning.sql
 
 ---
 
-## 十、常见问题
+## 十、第 2 周交付物核对
+
+| 序号 | 交付物 | 对应文件 | 状态 | 验收依据 |
+|---|---|---|---|---|
+| 1 | 枚举标准化 / 异常值 / 格式清洗脚本 | `sql/clean/20_*.sql` `21_*.sql` `22_*.sql` | ✅ | 六类枚举全部收敛；22 项问题中 20 项修复率 100% |
+| 2 | 数据质量对比报告 | `docs/数据质量清洗报告.md` | ✅ | 五类脏数据修复率，总体 99.73%（70,979 → 193） |
+| 3 | 数仓架构设计文档 | `docs/数仓架构设计.md` + `docs/images/数仓架构图.svg` | ✅ | 四层定位、粒度、命名规范、分区/分桶策略、数据流向 |
+| 4 | DWD 层建模与 ETL 脚本 | `sql/dwd/30_*.sql` `31_*.sql` `32_*.sql` `33_*.sql` | ✅ | 4 维表 + 订单事实表（366 分区）+ 8 桶分桶表，孤儿外键 0 |
+| 5 | 探索性分析简报 | `docs/探索性分析简报.md` + `sql/dwd/40_eda.sql` | ✅ | 8 项 KPI、12 个月趋势、类目/渠道/省份/门店/时段分布、RFM 五层 |
+| 6 | Git 提交记录 | 提交历史 | ✅ | 每个子任务独立提交（见 `git log --oneline`） |
+
+---
+
+## 十一、常见问题
 
 见 `docs/环境搭建笔记.md` 的「问题记录」章节，团队遇到新问题请随手补充——这份笔记本身就是交付物之一。
