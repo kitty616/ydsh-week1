@@ -1,0 +1,142 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="700" viewBox="0 0 960 700" font-family="Microsoft YaHei, PingFang SC, sans-serif">
+  <defs>
+    <linearGradient id="gOds" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#e8eef7"/><stop offset="100%" stop-color="#f5f8fd"/>
+    </linearGradient>
+    <linearGradient id="gDwd" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#e4f0ec"/><stop offset="100%" stop-color="#f4faf8"/>
+    </linearGradient>
+    <linearGradient id="gDws" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#fdf0e6"/><stop offset="100%" stop-color="#fff9f4"/>
+    </linearGradient>
+    <linearGradient id="gAds" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#f6e8f0"/><stop offset="100%" stop-color="#fdf5fa"/>
+    </linearGradient>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#8a93a5"/>
+    </marker>
+    <marker id="arrowW" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#c0456f"/>
+    </marker>
+  </defs>
+
+  <rect width="960" height="700" fill="#ffffff"/>
+
+  <text x="480" y="38" text-anchor="middle" font-size="21" font-weight="700" fill="#1f2b3d">云购生活 · 数据仓库四层架构</text>
+  <text x="480" y="62" text-anchor="middle" font-size="12.5" fill="#7b8698">ODS 贴源层 → DWD 明细层 → DWS 汇总层 → ADS 应用层</text>
+
+  <!-- 左侧层标签 -->
+  <g font-size="12" fill="#6b7688">
+    <text x="18" y="128" font-weight="700" fill="#4a5568">L1</text>
+    <text x="18" y="256" font-weight="700" fill="#4a5568">L2</text>
+    <text x="18" y="384" font-weight="700" fill="#4a5568">L3</text>
+    <text x="18" y="512" font-weight="700" fill="#4a5568">L4</text>
+  </g>
+
+  <!-- ============ ODS ============ -->
+  <rect x="52" y="88" width="856" height="108" rx="10" fill="url(#gOds)" stroke="#c6d3e6" stroke-width="1.2"/>
+  <rect x="52" y="88" width="6" height="108" rx="3" fill="#5b7fbf"/>
+  <text x="74" y="114" font-size="14.5" font-weight="700" fill="#2c4a7c">ODS · 贴源层</text>
+  <text x="196" y="114" font-size="11.5" fill="#7b8698">原样落地，不做任何加工 ｜ 保留原始值以便追溯</text>
+  <g font-size="11.5" fill="#33415c">
+    <rect x="74" y="128" width="120" height="26" rx="4" fill="#ffffff" stroke="#c6d3e6"/>
+    <text x="134" y="145" text-anchor="middle">ods_user</text>
+    <rect x="206" y="128" width="120" height="26" rx="4" fill="#ffffff" stroke="#c6d3e6"/>
+    <text x="266" y="145" text-anchor="middle">ods_product</text>
+    <rect x="338" y="128" width="120" height="26" rx="4" fill="#ffffff" stroke="#c6d3e6"/>
+    <text x="398" y="145" text-anchor="middle">ods_store</text>
+    <rect x="470" y="128" width="120" height="26" rx="4" fill="#ffffff" stroke="#c6d3e6"/>
+    <text x="530" y="145" text-anchor="middle">ods_order</text>
+    <rect x="602" y="128" width="130" height="26" rx="4" fill="#ffffff" stroke="#c6d3e6"/>
+    <text x="667" y="145" text-anchor="middle">ods_order_item</text>
+    <rect x="744" y="128" width="140" height="26" rx="4" fill="#ffffff" stroke="#c6d3e6"/>
+    <text x="814" y="145" text-anchor="middle">ods_user_behavior</text>
+  </g>
+  <text x="74" y="180" font-size="11" fill="#8a93a5">粒度：一行 = 业务库一条原始记录 ｜ 6 张表 114,809 行 ｜ 存储：文本 / CSV</text>
+
+  <!-- 箭头 L1 -> L2 -->
+  <line x1="480" y1="198" x2="480" y2="220" stroke="#c0456f" stroke-width="2" marker-end="url(#arrowW)"/>
+  <text x="494" y="214" font-size="11" fill="#c0456f">清洗 · 标准化 · 去重</text>
+
+  <!-- ============ DWD ============ -->
+  <rect x="52" y="222" width="856" height="108" rx="10" fill="url(#gDwd)" stroke="#bcd8cf" stroke-width="1.2"/>
+  <rect x="52" y="222" width="6" height="108" rx="3" fill="#2f8f78"/>
+  <text x="74" y="248" font-size="14.5" font-weight="700" fill="#1d6b58">DWD · 明细层</text>
+  <text x="196" y="248" font-size="11.5" fill="#7b8698">清洗 + 标准化 + 维度关联 ｜ 星型模型</text>
+  <g font-size="11.5" fill="#33415c">
+    <rect x="74" y="262" width="128" height="26" rx="4" fill="#ffffff" stroke="#bcd8cf"/>
+    <text x="138" y="279" text-anchor="middle" fill="#1d6b58" font-weight="600">dwd_order ★事实</text>
+    <rect x="214" y="262" width="112" height="26" rx="4" fill="#ffffff" stroke="#bcd8cf"/>
+    <text x="270" y="279" text-anchor="middle">dim_user</text>
+    <rect x="338" y="262" width="112" height="26" rx="4" fill="#ffffff" stroke="#bcd8cf"/>
+    <text x="394" y="279" text-anchor="middle">dim_product</text>
+    <rect x="462" y="262" width="112" height="26" rx="4" fill="#ffffff" stroke="#bcd8cf"/>
+    <text x="518" y="279" text-anchor="middle">dim_store</text>
+    <rect x="586" y="262" width="112" height="26" rx="4" fill="#ffffff" stroke="#bcd8cf"/>
+    <text x="642" y="279" text-anchor="middle">dim_date</text>
+    <rect x="710" y="262" width="174" height="26" rx="4" fill="#ffffff" stroke="#bcd8cf"/>
+    <text x="797" y="279" text-anchor="middle" font-size="10.5">dim_member_level 等 5 张码表</text>
+  </g>
+  <text x="74" y="314" font-size="11" fill="#8a93a5">粒度：订单 / 日 ｜ 分区：order_date（366 个分区）｜ 分桶：user_id 8 桶 ｜ 存储：ORC + SNAPPY</text>
+
+  <!-- 箭头 L2 -> L3 -->
+  <line x1="480" y1="332" x2="480" y2="354" stroke="#c0456f" stroke-width="2" marker-end="url(#arrowW)"/>
+  <text x="494" y="348" font-size="11" fill="#c0456f">按主题轻度聚合</text>
+
+  <!-- ============ DWS ============ -->
+  <rect x="52" y="356" width="856" height="108" rx="10" fill="url(#gDws)" stroke="#eed6c0" stroke-width="1.2"/>
+  <rect x="52" y="356" width="6" height="108" rx="3" fill="#c98a4b"/>
+  <text x="74" y="382" font-size="14.5" font-weight="700" fill="#9a5f24">DWS · 汇总层</text>
+  <text x="196" y="382" font-size="11.5" fill="#7b8698">按主题轻度汇总，供多张看板复用同一口径</text>
+  <g font-size="11.5" fill="#33415c">
+    <rect x="74" y="396" width="180" height="26" rx="4" fill="#ffffff" stroke="#eed6c0"/>
+    <text x="164" y="413" text-anchor="middle">dws_daily_sales</text>
+    <rect x="266" y="396" width="180" height="26" rx="4" fill="#ffffff" stroke="#eed6c0"/>
+    <text x="356" y="413" text-anchor="middle">dws_store_sales</text>
+    <rect x="458" y="396" width="180" height="26" rx="4" fill="#ffffff" stroke="#eed6c0"/>
+    <text x="548" y="413" text-anchor="middle">dws_category_sales</text>
+  </g>
+  <text x="74" y="448" font-size="11" fill="#8a93a5">粒度：日 / 门店 / 类目 ｜ 366 + 60 + 8 行 ｜ 只做轻度聚合，不面向具体报表</text>
+
+  <!-- 箭头 L3 -> L4 -->
+  <line x1="480" y1="466" x2="480" y2="488" stroke="#c0456f" stroke-width="2" marker-end="url(#arrowW)"/>
+  <text x="494" y="482" font-size="11" fill="#c0456f">指标加工 · 排序分层</text>
+
+  <!-- ============ ADS ============ -->
+  <rect x="52" y="490" width="856" height="108" rx="10" fill="url(#gAds)" stroke="#e8cbdb" stroke-width="1.2"/>
+  <rect x="52" y="490" width="6" height="108" rx="3" fill="#b5487a"/>
+  <text x="74" y="516" font-size="14.5" font-weight="700" fill="#8e2f5c">ADS · 应用层</text>
+  <text x="196" y="516" font-size="11.5" fill="#7b8698">面向指标与报表，一个表服务一个分析主题</text>
+  <g font-size="11.5" fill="#33415c">
+    <rect x="74" y="530" width="152" height="26" rx="4" fill="#ffffff" stroke="#e8cbdb"/>
+    <text x="150" y="547" text-anchor="middle" font-size="10.5">ads_kpi_overview</text>
+    <rect x="238" y="530" width="152" height="26" rx="4" fill="#ffffff" stroke="#e8cbdb"/>
+    <text x="314" y="547" text-anchor="middle" font-size="10.5">ads_region_sales</text>
+    <rect x="402" y="530" width="152" height="26" rx="4" fill="#ffffff" stroke="#e8cbdb"/>
+    <text x="478" y="547" text-anchor="middle" font-size="10.5">ads_channel_sales</text>
+    <rect x="566" y="530" width="152" height="26" rx="4" fill="#ffffff" stroke="#e8cbdb"/>
+    <text x="642" y="547" text-anchor="middle" font-size="10.5">ads_store_rank</text>
+    <rect x="730" y="530" width="152" height="26" rx="4" fill="#ffffff" stroke="#e8cbdb"/>
+    <text x="806" y="547" text-anchor="middle" font-size="10.5">ads_user_value</text>
+  </g>
+  <text x="74" y="582" font-size="11" fill="#8a93a5">粒度：指标级结果 ｜ 直接供看板 / 报表 / 简报取数</text>
+
+  <!-- 右侧数据流向 -->
+  <g>
+    <line x1="838" y1="612" x2="560" y2="612" stroke="#9aa4b6" stroke-width="1.4" marker-end="url(#arrow)"/>
+    <text x="712" y="604" text-anchor="middle" font-size="11" fill="#6b7688">数据流向：自下而上逐层加工，下游只读上游</text>
+  </g>
+
+  <!-- 图例 -->
+  <g font-size="11" fill="#6b7688">
+    <rect x="74" y="632" width="12" height="12" rx="2" fill="#e8eef7" stroke="#c6d3e6"/>
+    <text x="92" y="642">贴源（不加工）</text>
+    <rect x="196" y="632" width="12" height="12" rx="2" fill="#e4f0ec" stroke="#bcd8cf"/>
+    <text x="214" y="642">建模（清洗后）</text>
+    <rect x="318" y="632" width="12" height="12" rx="2" fill="#fdf0e6" stroke="#eed6c0"/>
+    <text x="336" y="642">汇总（可复用）</text>
+    <rect x="440" y="632" width="12" height="12" rx="2" fill="#f6e8f0" stroke="#e8cbdb"/>
+    <text x="458" y="642">应用（面向报表）</text>
+    <text x="74" y="668">命名规范：ods_ / dwd_ / dws_ / ads_ 前缀区分层级；dim_ 前缀为维度表；★ 标记为事实表</text>
+  </g>
+</svg>
