@@ -31,7 +31,7 @@
 -- 先算出一个稳健的金额上界，供后续两个语句复用
 DROP TABLE IF EXISTS ydsh_dwd.stg_amount_threshold;
 CREATE TABLE ydsh_dwd.stg_amount_threshold STORED AS ORC AS
-SELECT ROUND(p25 + 3 * (p75 - p25), 2) AS upper_bound,
+SELECT ROUND(p75 + 3 * (p75 - p25), 2) AS upper_bound,
        ROUND(p25, 2) AS q1, ROUND(p75, 2) AS q3
 FROM (
   -- 阈值从贴源层计算而非从 dwd_order_clean 计算：

@@ -135,11 +135,11 @@ FROM (
     (SELECT COUNT(*) FROM ydsh_dwd.dwd_order_clean WHERE pay_amount <= 0),
     '负金额无业务解释，整单剔除'
   UNION ALL
-  SELECT '异常值', 'order.pay_amount 超上限（IQR 上界 8840.59）',
+  SELECT '异常值', 'order.pay_amount 超上限（IQR 上界 11356.33）',
     (SELECT COUNT(*) FROM ydsh_ods.ods_order
-      WHERE CAST(TRIM(pay_amount) AS DOUBLE) > 8840.59),
-    (SELECT COUNT(*) FROM ydsh_dwd.dwd_order_clean WHERE pay_amount > 8840.59),
-    'Q3+3×IQR 稳健上界，避免绝对阈值误删高客单'
+      WHERE CAST(TRIM(pay_amount) AS DOUBLE) > 11356.33),
+    (SELECT COUNT(*) FROM ydsh_dwd.dwd_order_clean WHERE pay_amount > 11356.33),
+    'Q3+3×IQR 稳健上界 = 11356.33 元，避免绝对阈值误删高客单'
   UNION ALL
   SELECT '异常值', 'order_item.quantity 非正数',
     (SELECT COUNT(*) FROM ydsh_ods.ods_order_item WHERE CAST(TRIM(quantity) AS INT) <= 0),
