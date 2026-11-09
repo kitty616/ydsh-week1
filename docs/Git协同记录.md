@@ -1,7 +1,7 @@
 # 第 3 周 Git 团队协同实战记录
 
 > 对应第 3 周子任务 6：Fork 工作流 / Pull Request / Code Review / Issue 追踪 / 冲突解决
-> 记录时间：2026-11-09 ～ 2026-11-10
+> 记录时间：2026-11-09
 > 仓库：https://github.com/kitty616/ydsh-week1
 
 ---
