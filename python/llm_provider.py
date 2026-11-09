@@ -56,8 +56,8 @@ PROVIDERS = {
         "key_env": "ZHIPU_API_KEY",
         "base_url": "https://open.bigmodel.cn/api/paas/v4",
         "default_model": "glm-4-flash",
-        "console": "https://open.bigmodel.cn/usercenter/apikeys",
-        "note": "glm-4-flash 免费",
+        "console": "https://bigmodel.cn/usercenter/proj-mgmt/apikeys",
+        "note": "glm-4-flash 免费；Key 形如 xxx.xxx 两段，别只复制前一段",
     },
 }
 

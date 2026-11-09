@@ -36,6 +36,26 @@ from llm_provider import PROVIDERS, configured, resolve, signup_hints  # noqa: E
 from nl2sql import load_env  # noqa: E402
 
 
+def list_models(p):
+    """用 OpenAI 兼容的 GET /models 拉该服务商的模型列表
+
+    为什么需要它：各家的控制台叫法（如体验中心显示「GLM-5.3」）和 API 里真正
+    要填的 model 参数常常不是一个字符串，靠猜只会反复吃 404。能拉到就直接看。
+
+    返回 (模型 id 列表 or None, 错误说明 or None)。不是所有服务商都实现这个端点，
+    拉不到不算失败，只是少一条线索。
+    """
+    try:
+        from openai import OpenAI
+    except ImportError:
+        return None, "未安装 openai 库"
+    try:
+        client = OpenAI(api_key=p.key, base_url=p.base_url, timeout=30)
+        return [m.id for m in client.models.list().data], None
+    except Exception as e:
+        return None, f"{type(e).__name__}: {str(e)[:160]}"
+
+
 def ping(p, prompt, model=None, quiet=False):
     """对单个 Provider 发一次最小调用，返回 (成功?, 耗时, 说明)"""
     model = model or p.model
@@ -75,6 +95,13 @@ def ping(p, prompt, model=None, quiet=False):
                 print("  · 401 / 鉴权失败 → Key 填错、已失效，或复制时带了空格引号")
             elif "404" in low or "model" in low:
                 print("  · 模型名不存在 → 用 --model 指定该服务商实际提供的模型")
+                ids, err = list_models(p)
+                if ids:
+                    print(f"  · 该服务商实际可用模型 {len(ids)} 个，前 15 个：")
+                    for mid in ids[:15]:
+                        print(f"      {mid}")
+                elif err:
+                    print(f"  · GET /models 不可用（{err[:70]}），请到控制台页查模型名")
             elif "timeout" in low or "connect" in low:
                 print("  · 网络不通 → 检查代理设置；本机 github.com 曾出现 443 被阻断")
             elif "quota" in low or "balance" in low or "402" in low or "429" in low:
@@ -110,6 +137,8 @@ def main():
     ap.add_argument("--model", help="覆盖默认模型名")
     ap.add_argument("--prompt", default="请只回复两个字：收到", help="测试用提示词")
     ap.add_argument("--all", action="store_true", help="遍历所有已配置的服务商")
+    ap.add_argument("--list-models", action="store_true",
+                    help="拉取该服务商实际可用的模型 id（填 .env 前先跑这个）")
     args = ap.parse_args()
 
     env = load_env()
@@ -117,6 +146,27 @@ def main():
     print("=" * 66)
     print("大模型 API 连通性验证")
     print("=" * 66)
+
+    # --list-models：先把真实模型 id 查出来，避免拿控制台显示名去猜 model 参数
+    if args.list_models:
+        p = resolve(env, args.provider)
+        if p is None:
+            print("✗ 未找到任何 API Key，先填 .env")
+            return 1
+        print(f"服务商    : {p.name}")
+        print(f"接口地址  : {p.base_url}")
+        print(f"Key       : {p.masked_key}")
+        print("-" * 66)
+        ids, err = list_models(p)
+        if ids:
+            print(f"可用模型 {len(ids)} 个（把要用的那个填进 .env 的 *_MODEL）：")
+            for mid in ids:
+                print(f"  {mid}")
+            return 0
+        print(f"✗ 拉取失败：{err}")
+        print("  该服务商可能没实现 GET /models，请到控制台页面查看模型名，")
+        print("  再用 --model 直接试：python python/llm_ping.py --model <模型名>")
+        return 1
 
     # --all：逐家探测，做成对照表
     if args.all:
