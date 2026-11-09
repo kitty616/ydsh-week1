@@ -1,0 +1,102 @@
+[
+  {
+    "question": "2024 年 6 月的总 GMV 是多少？",
+    "mode": "规则模式（未配置 API Key）",
+    "sql": "SELECT month, gmv, order_cnt, aov FROM ydsh_ads.ads_monthly_trend WHERE month = '2024-06'\nLIMIT 200",
+    "ok": true,
+    "problems": [],
+    "rows": [
+      "month\tgmv\torder_cnt\taov",
+      "2024-06\t2829996.31\t1110\t2549.55"
+    ],
+    "llm_error": null
+  },
+  {
+    "question": "销量最高的前 5 个品类",
+    "mode": "规则模式（未配置 API Key）",
+    "sql": "SELECT rank_no, category, gmv, gmv_share FROM ydsh_ads.ads_category_topn WHERE rank_no <= 5 ORDER BY rank_no\nLIMIT 200",
+    "ok": true,
+    "problems": [],
+    "rows": [
+      "rank_no\tcategory\tgmv\tgmv_share",
+      "1\t运动户外\t5347686.69\t0.1495",
+      "2\t数码家电\t4881250.03\t0.1365",
+      "3\t服饰鞋包\t4517646.97\t0.1263",
+      "4\t图书文娱\t4488221.1\t0.1255",
+      "5\t食品生鲜\t4404684.77\t0.1231"
+    ],
+    "llm_error": null
+  },
+  {
+    "question": "用户价值分层结构是什么样的",
+    "mode": "规则模式（未配置 API Key）",
+    "sql": "SELECT user_segment, user_cnt, user_share, gmv, gmv_share FROM ydsh_ads.ads_user_segment ORDER BY gmv DESC\nLIMIT 200",
+    "ok": true,
+    "problems": [],
+    "rows": [
+      "user_segment\tuser_cnt\tuser_share\tgmv\tgmv_share",
+      "重要价值用户\t235\t0.235\t1.183820051E7\t0.3278",
+      "一般价值用户\t324\t0.324\t1.121083941E7\t0.3104",
+      "低价值用户\t294\t0.294\t6980054.4\t0.1933",
+      "高价值低频用户\t98\t0.098\t4303665.23\t0.1192",
+      "高频潜力用户\t49\t0.049\t1783927.51\t0.0494"
+    ],
+    "llm_error": null
+  },
+  {
+    "question": "列出所有核心 KPI 指标",
+    "mode": "规则模式（未配置 API Key）",
+    "sql": "SELECT metric_code, metric_name, metric_value, unit FROM ydsh_ads.ads_kpi_core ORDER BY metric_code\nLIMIT 200",
+    "ok": true,
+    "problems": [],
+    "rows": [
+      "metric_code\tmetric_name\tmetric_value\tunit",
+      "KPI_ACTIVE_USER\t活跃用户数\t1000.0\t人",
+      "KPI_AOV\t客单价 AOV\t2508.45\t元/单",
+      "KPI_CANCEL_RATE\t订单取消率\t0.1405\t比率",
+      "KPI_DISCOUNT_RATE\t整体折扣率\t0.1177\t比率",
+      "KPI_GMV\tGMV 成交总额\t3.611668706E7\t元",
+      "KPI_ONCE_BUYER_RATIO\t单次购买用户占比\t0.0\t比率",
+      "KPI_ORDER_CNT\t订单量\t14398.0\t单",
+      "KPI_ORDER_PER_USER\t人均下单次数\t14.4\t次/人",
+      "KPI_REPURCHASE_RATE\t复购率\t1.0\t比率",
+      "KPI_TOP_CATEGORY_SHARE\t第一大品类 GMV 占比\t0.1495\t比率"
+    ],
+    "llm_error": null
+  },
+  {
+    "question": "2024 年每个月的 GMV 趋势",
+    "mode": "规则模式（未配置 API Key）",
+    "sql": "SELECT month, gmv, order_cnt, mom_rate FROM ydsh_ads.ads_monthly_trend ORDER BY month\nLIMIT 200",
+    "ok": true,
+    "problems": [],
+    "rows": [
+      "month\tgmv\torder_cnt\tmom_rate",
+      "2024-01\t3158704.7\t1228\tNULL",
+      "2024-02\t2915145.59\t1143\t-0.0771",
+      "2024-03\t3087726.84\t1236\t0.0592",
+      "2024-04\t3025844.79\t1174\t-0.02",
+      "2024-05\t3080528.74\t1249\t0.0181",
+      "2024-06\t2829996.31\t1110\t-0.0813",
+      "2024-07\t2979236.8\t1200\t0.0527",
+      "2024-08\t3039882.76\t1223\t0.0204",
+      "2024-09\t2929450.71\t1173\t-0.0363",
+      "2024-10\t2963200.54\t1243\t0.0115",
+      "2024-11\t2995222.54\t1183\t0.0108",
+      "2024-12\t3111746.74\t1236\t0.0389"
+    ],
+    "llm_error": null
+  },
+  {
+    "question": "广东省的销售额是多少",
+    "mode": "规则模式（未配置 API Key）",
+    "sql": "SELECT s.province, ROUND(SUM(o.pay_amount), 2) AS gmv, COUNT(DISTINCT o.order_id) AS order_cnt FROM ydsh_dwd.dwd_order o JOIN ydsh_dwd.dim_store s ON o.store_id = s.store_id WHERE s.province LIKE '广东%' GROUP BY s.province\nLIMIT 200",
+    "ok": true,
+    "problems": [],
+    "rows": [
+      "s.province\tgmv\torder_cnt",
+      "广东省\t581858.32\t222"
+    ],
+    "llm_error": null
+  }
+]

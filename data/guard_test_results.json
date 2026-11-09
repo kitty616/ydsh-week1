@@ -1,0 +1,159 @@
+{
+  "passed": 15,
+  "total": 15,
+  "detail": [
+    {
+      "case": "正常查询（带库名）",
+      "expect": true,
+      "actual": true,
+      "expect_sql": "ydsh_ads.ads_category_topn",
+      "rewrite_ok": true,
+      "problems": [],
+      "sql_after": "SELECT category, gmv FROM ydsh_ads.ads_category_topn WHERE rank_no <= 5\nLIMIT 200"
+    },
+    {
+      "case": "正常查询（裸表名，ads 层）",
+      "expect": true,
+      "actual": true,
+      "expect_sql": "ydsh_ads.ads_monthly_trend",
+      "rewrite_ok": true,
+      "problems": [],
+      "sql_after": "SELECT month, gmv FROM ydsh_ads.ads_monthly_trend\nLIMIT 200"
+    },
+    {
+      "case": "裸表名应补到 dws 层而非 ads",
+      "expect": true,
+      "actual": true,
+      "expect_sql": "ydsh_dws.dws_trade_day",
+      "rewrite_ok": true,
+      "problems": [],
+      "sql_after": "SELECT dt, gmv FROM ydsh_dws.dws_trade_day\nLIMIT 200"
+    },
+    {
+      "case": "裸表名应补到 dwd 层而非 ads",
+      "expect": true,
+      "actual": true,
+      "expect_sql": "ydsh_dwd.dwd_order",
+      "rewrite_ok": true,
+      "problems": [],
+      "sql_after": "SELECT order_id, pay_amount FROM ydsh_dwd.dwd_order\nLIMIT 200"
+    },
+    {
+      "case": "裸维表应补到 dwd 层",
+      "expect": true,
+      "actual": true,
+      "expect_sql": "ydsh_dwd.dim_store",
+      "rewrite_ok": true,
+      "problems": [],
+      "sql_after": "SELECT store_id, province FROM ydsh_dwd.dim_store\nLIMIT 200"
+    },
+    {
+      "case": "正常查询（聚合 + JOIN）",
+      "expect": true,
+      "actual": true,
+      "expect_sql": "ydsh_dwd.dim_store",
+      "rewrite_ok": true,
+      "problems": [],
+      "sql_after": "SELECT s.province, SUM(o.pay_amount) gmv FROM ydsh_dwd.dwd_order o JOIN ydsh_dwd.dim_store s ON o.store_id = s.store_id GROUP BY s.province\nLIMIT 200"
+    },
+    {
+      "case": "危险：DELETE",
+      "expect": false,
+      "actual": false,
+      "expect_sql": null,
+      "rewrite_ok": true,
+      "problems": [
+        "包含写操作关键字，已拦截",
+        "不是 SELECT / WITH 开头"
+      ],
+      "sql_after": "DELETE FROM ydsh_dwd.dwd_order WHERE order_date='2024-01-01'\nLIMIT 200"
+    },
+    {
+      "case": "危险：DROP TABLE",
+      "expect": false,
+      "actual": false,
+      "expect_sql": null,
+      "rewrite_ok": true,
+      "problems": [
+        "包含写操作关键字，已拦截",
+        "不是 SELECT / WITH 开头"
+      ],
+      "sql_after": "DROP TABLE ydsh_dwd.dwd_order\nLIMIT 200"
+    },
+    {
+      "case": "危险：UPDATE",
+      "expect": false,
+      "actual": false,
+      "expect_sql": null,
+      "rewrite_ok": true,
+      "problems": [
+        "包含写操作关键字，已拦截",
+        "不是 SELECT / WITH 开头"
+      ],
+      "sql_after": "UPDATE ydsh_ads.ads_kpi_core SET metric_value = 0\nLIMIT 200"
+    },
+    {
+      "case": "危险：多语句注入",
+      "expect": false,
+      "actual": false,
+      "expect_sql": null,
+      "rewrite_ok": true,
+      "problems": [
+        "包含写操作关键字，已拦截"
+      ],
+      "sql_after": "SELECT 1;\nDROP TABLE ydsh_dwd.dwd_order\nLIMIT 200"
+    },
+    {
+      "case": "错误：编造的库表",
+      "expect": false,
+      "actual": false,
+      "expect_sql": null,
+      "rewrite_ok": true,
+      "problems": [
+        "引用了白名单外的表：ydsh_ods.ods_sales_fact",
+        "库名补全后仍不在白名单：ydsh_ods.ods_sales_fact"
+      ],
+      "sql_after": "SELECT * FROM ydsh_ods.ods_sales_fact\nLIMIT 200"
+    },
+    {
+      "case": "错误：非 SELECT 开头",
+      "expect": false,
+      "actual": false,
+      "expect_sql": null,
+      "rewrite_ok": true,
+      "problems": [
+        "不是 SELECT / WITH 开头"
+      ],
+      "sql_after": "SHOW TABLES IN ydsh_dwd\nLIMIT 200"
+    },
+    {
+      "case": "错误：空输出",
+      "expect": false,
+      "actual": false,
+      "expect_sql": null,
+      "rewrite_ok": true,
+      "problems": [
+        "模型没有返回 SQL"
+      ],
+      "sql_after": ""
+    },
+    {
+      "case": "边界：子查询里的裸表名",
+      "expect": true,
+      "actual": true,
+      "expect_sql": "ydsh_dws.dws_trade_day",
+      "rewrite_ok": true,
+      "problems": [],
+      "sql_after": "SELECT * FROM (SELECT dt, gmv FROM ydsh_dws.dws_trade_day) t LIMIT 5"
+    },
+    {
+      "case": "边界：已带库名不应被重复补全",
+      "expect": true,
+      "actual": true,
+      "expect_sql": "ydsh_dws.dws_trade_day",
+      "rewrite_ok": true,
+      "problems": [],
+      "sql_after": "SELECT dt FROM ydsh_dws.dws_trade_day LIMIT 3"
+    }
+  ]
+}

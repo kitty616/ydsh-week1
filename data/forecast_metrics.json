@@ -1,0 +1,89 @@
+{
+  "model_selected": "随机森林",
+  "metrics": {
+    "基线-上周同日": {
+      "MAE": 18723.73,
+      "MAPE": 0.1891,
+      "RMSE": 23644.1
+    },
+    "基线-近7日均值": {
+      "MAE": 13584.32,
+      "MAPE": 0.1393,
+      "RMSE": 17091.01
+    },
+    "基线-近14日均值": {
+      "MAE": 12747.87,
+      "MAPE": 0.1319,
+      "RMSE": 16506.05
+    },
+    "线性回归": {
+      "MAE": 12121.66,
+      "MAPE": 0.1155,
+      "RMSE": 16703.37
+    },
+    "随机森林": {
+      "MAE": 12038.7,
+      "MAPE": 0.1179,
+      "RMSE": 16312.17
+    }
+  },
+  "series_stats": {
+    "days": 366,
+    "mean": 98679.47,
+    "std": 18466.81,
+    "cv": 0.1871,
+    "min": 50273.3,
+    "max": 154480.82
+  },
+  "forecast_7d": [
+    {
+      "dt": "2025-01-01",
+      "forecast_gmv": 97164.96,
+      "baseline_lag7": 84626.81,
+      "baseline_ma7": 94251.72,
+      "weekday": "周三"
+    },
+    {
+      "dt": "2025-01-02",
+      "forecast_gmv": 99975.48,
+      "baseline_lag7": 104993.28,
+      "baseline_ma7": 96042.88,
+      "weekday": "周四"
+    },
+    {
+      "dt": "2025-01-03",
+      "forecast_gmv": 98013.23,
+      "baseline_lag7": 78218.59,
+      "baseline_ma7": 95326.05,
+      "weekday": "周五"
+    },
+    {
+      "dt": "2025-01-04",
+      "forecast_gmv": 99363.09,
+      "baseline_lag7": 105164.66,
+      "baseline_ma7": 98153.86,
+      "weekday": "周六"
+    },
+    {
+      "dt": "2025-01-05",
+      "forecast_gmv": 93587.51,
+      "baseline_lag7": 98380.57,
+      "baseline_ma7": 97325.06,
+      "weekday": "周日"
+    },
+    {
+      "dt": "2025-01-06",
+      "forecast_gmv": 96941.43,
+      "baseline_lag7": 93447.13,
+      "baseline_ma7": 96640.34,
+      "weekday": "周一"
+    },
+    {
+      "dt": "2025-01-07",
+      "forecast_gmv": 95371.85,
+      "baseline_lag7": 94930.99,
+      "baseline_ma7": 97139.53,
+      "weekday": "周二"
+    }
+  ]
+}

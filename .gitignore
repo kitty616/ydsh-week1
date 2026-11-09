@@ -4,6 +4,9 @@ data/*.xlsx
 模拟数据/*.csv
 *.csv
 
+# 例外：预测建模的输入序列（366 行，约 30KB，必须随仓库分发才能复现）
+!data/daily_gmv.csv
+
 # ===== 密钥与配置 =====
 .env
 *.key

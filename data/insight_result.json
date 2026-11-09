@@ -1,0 +1,304 @@
+{
+  "anomaly_threshold": 0.25,
+  "anomaly_days": 78,
+  "anomaly_ratio": 0.2131,
+  "top_anomalies": [
+    {
+      "dt": "2024-07-06",
+      "gmv": 154480.82,
+      "baseline_ma7": 88054.91,
+      "deviation": 0.7544,
+      "z_score": 3.64,
+      "attribute": {
+        "channel": [
+          {
+            "key": "CH02",
+            "current": 22274.67,
+            "baseline": 28570.61,
+            "delta": -6295.94,
+            "share_of_delta": -0.0948
+          },
+          {
+            "key": "CH03",
+            "current": 35517.69,
+            "baseline": 22529.23,
+            "delta": 12988.46,
+            "share_of_delta": 0.1955
+          },
+          {
+            "key": "CH01",
+            "current": 38362.05,
+            "baseline": 16859.6,
+            "delta": 21502.45,
+            "share_of_delta": 0.3237
+          },
+          {
+            "key": "CH04",
+            "current": 58326.41,
+            "baseline": 20095.47,
+            "delta": 38230.94,
+            "share_of_delta": 0.5755
+          }
+        ],
+        "category": [
+          {
+            "key": "服饰鞋包",
+            "current": 6738.29,
+            "baseline": 9156.51,
+            "delta": -2418.22,
+            "share_of_delta": -0.0362
+          },
+          {
+            "key": "美妆个护",
+            "current": 15014.1,
+            "baseline": 11285.54,
+            "delta": 3728.56,
+            "share_of_delta": 0.0558
+          },
+          {
+            "key": "食品生鲜",
+            "current": 15535.73,
+            "baseline": 10632.34,
+            "delta": 4903.39,
+            "share_of_delta": 0.0734
+          },
+          {
+            "key": "母婴玩具",
+            "current": 19337.67,
+            "baseline": 13472.26,
+            "delta": 5865.41,
+            "share_of_delta": 0.0877
+          },
+          {
+            "key": "图书文娱",
+            "current": 20595.35,
+            "baseline": 12137.31,
+            "delta": 8458.04,
+            "share_of_delta": 0.1265
+          },
+          {
+            "key": "数码家电",
+            "current": 21756.33,
+            "baseline": 11123.71,
+            "delta": 10632.62,
+            "share_of_delta": 0.1591
+          },
+          {
+            "key": "家居生活",
+            "current": 19230.67,
+            "baseline": 7802.91,
+            "delta": 11427.76,
+            "share_of_delta": 0.171
+          },
+          {
+            "key": "运动户外",
+            "current": 36272.68,
+            "baseline": 12025.91,
+            "delta": 24246.77,
+            "share_of_delta": 0.3627
+          }
+        ],
+        "channel_total_delta": 66425.91,
+        "category_total_delta": 66844.34
+      }
+    },
+    {
+      "dt": "2024-06-22",
+      "gmv": 136990.78,
+      "baseline_ma7": 83927.56,
+      "deviation": 0.6323,
+      "z_score": 3.38,
+      "attribute": {
+        "channel": [
+          {
+            "key": "CH03",
+            "current": 20561.87,
+            "baseline": 21586.0,
+            "delta": -1024.13,
+            "share_of_delta": -0.0193
+          },
+          {
+            "key": "CH02",
+            "current": 36311.8,
+            "baseline": 22648.73,
+            "delta": 13663.07,
+            "share_of_delta": 0.2575
+          },
+          {
+            "key": "CH04",
+            "current": 35873.87,
+            "baseline": 16569.97,
+            "delta": 19303.9,
+            "share_of_delta": 0.3638
+          },
+          {
+            "key": "CH01",
+            "current": 44243.24,
+            "baseline": 23122.86,
+            "delta": 21120.38,
+            "share_of_delta": 0.398
+          }
+        ],
+        "category": [
+          {
+            "key": "运动户外",
+            "current": 10436.89,
+            "baseline": 13411.93,
+            "delta": -2975.04,
+            "share_of_delta": -0.0548
+          },
+          {
+            "key": "家居生活",
+            "current": 8632.22,
+            "baseline": 11480.51,
+            "delta": -2848.29,
+            "share_of_delta": -0.0525
+          },
+          {
+            "key": "图书文娱",
+            "current": 12327.26,
+            "baseline": 9546.86,
+            "delta": 2780.4,
+            "share_of_delta": 0.0513
+          },
+          {
+            "key": "食品生鲜",
+            "current": 12102.65,
+            "baseline": 9312.44,
+            "delta": 2790.21,
+            "share_of_delta": 0.0514
+          },
+          {
+            "key": "数码家电",
+            "current": 15456.41,
+            "baseline": 11491.67,
+            "delta": 3964.74,
+            "share_of_delta": 0.0731
+          },
+          {
+            "key": "美妆个护",
+            "current": 23216.26,
+            "baseline": 7717.96,
+            "delta": 15498.3,
+            "share_of_delta": 0.2857
+          },
+          {
+            "key": "服饰鞋包",
+            "current": 27251.34,
+            "baseline": 10476.51,
+            "delta": 16774.83,
+            "share_of_delta": 0.3092
+          },
+          {
+            "key": "母婴玩具",
+            "current": 27567.75,
+            "baseline": 9306.85,
+            "delta": 18260.9,
+            "share_of_delta": 0.3366
+          }
+        ],
+        "channel_total_delta": 53063.22,
+        "category_total_delta": 54246.05
+      }
+    },
+    {
+      "dt": "2024-06-08",
+      "gmv": 135623.01,
+      "baseline_ma7": 84724.38,
+      "deviation": 0.6008,
+      "z_score": 4.81,
+      "attribute": {
+        "channel": [
+          {
+            "key": "CH02",
+            "current": 24827.94,
+            "baseline": 18296.08,
+            "delta": 6531.86,
+            "share_of_delta": 0.1283
+          },
+          {
+            "key": "CH01",
+            "current": 29877.07,
+            "baseline": 20909.82,
+            "delta": 8967.25,
+            "share_of_delta": 0.1762
+          },
+          {
+            "key": "CH04",
+            "current": 32177.99,
+            "baseline": 22824.01,
+            "delta": 9353.98,
+            "share_of_delta": 0.1838
+          },
+          {
+            "key": "CH03",
+            "current": 48740.01,
+            "baseline": 22694.47,
+            "delta": 26045.54,
+            "share_of_delta": 0.5117
+          }
+        ],
+        "category": [
+          {
+            "key": "服饰鞋包",
+            "current": 10913.91,
+            "baseline": 11878.41,
+            "delta": -964.5,
+            "share_of_delta": -0.0187
+          },
+          {
+            "key": "家居生活",
+            "current": 7675.62,
+            "baseline": 8207.05,
+            "delta": -531.43,
+            "share_of_delta": -0.0103
+          },
+          {
+            "key": "图书文娱",
+            "current": 15046.11,
+            "baseline": 11032.46,
+            "delta": 4013.65,
+            "share_of_delta": 0.0778
+          },
+          {
+            "key": "母婴玩具",
+            "current": 14987.24,
+            "baseline": 7119.31,
+            "delta": 7867.93,
+            "share_of_delta": 0.1526
+          },
+          {
+            "key": "食品生鲜",
+            "current": 21804.53,
+            "baseline": 12611.14,
+            "delta": 9193.39,
+            "share_of_delta": 0.1783
+          },
+          {
+            "key": "运动户外",
+            "current": 23203.65,
+            "baseline": 13794.99,
+            "delta": 9408.66,
+            "share_of_delta": 0.1824
+          },
+          {
+            "key": "数码家电",
+            "current": 19879.94,
+            "baseline": 9648.86,
+            "delta": 10231.08,
+            "share_of_delta": 0.1984
+          },
+          {
+            "key": "美妆个护",
+            "current": 22112.01,
+            "baseline": 9758.07,
+            "delta": 12353.94,
+            "share_of_delta": 0.2395
+          }
+        ],
+        "channel_total_delta": 50898.63,
+        "category_total_delta": 51572.73
+      }
+    }
+  ]
+}
