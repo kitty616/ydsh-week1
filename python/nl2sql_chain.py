@@ -59,6 +59,19 @@ from pydantic import BaseModel, Field  # noqa: E402
 SCHEMA_TABLES = json.load(open(os.path.join(BASE, "data", "hive_schema.json"), encoding="utf-8"))
 
 
+def _stage(runner, name):
+    """把「这一级叫什么」写进输出，让上层如实显示实际命中的降级层级
+
+    为什么不用全局变量或 contextvars：LangChain 的 RunnableParallel 在线程池里
+    执行，contextvars 会被复制到子线程，子线程里 set 的值主线程读不到——
+    实测过，读出来永远是初始值。把层级作为数据在管道里流动才可靠。
+    """
+    return RunnablePassthrough.assign(
+        sql=runner,
+        stage=RunnableLambda(lambda _: name),
+    )
+
+
 # ----------------------------------------------------------------------
 # 1. 模型供应商解析（与手写版保持一致，便于对照）
 # ----------------------------------------------------------------------
@@ -159,24 +172,28 @@ def build_sql_chain(env, timer=None):
         # 故意让它走真实的 fallback 路径，而不是在外层 if/else 里绕开——
         # 这样「降级机制本身」每周都在被验证，不会等到真出事才发现失效。
         def no_key(_):
-            raise RuntimeError("未配置 DEEPSEEK_API_KEY / DASHSCOPE_API_KEY")
+            raise RuntimeError("未配置任何服务商 API Key（见 .env.example）")
 
-        primary = RunnableLambda(no_key)
-        text_chain = RunnableLambda(no_key)
+        primary = _stage(RunnableLambda(no_key), "结构化输出")
+        text_chain = _stage(RunnableLambda(no_key), "纯文本兜底")
     else:
         from langchain_openai import ChatOpenAI
         key, base_url, model, _ = provider
         llm = ChatOpenAI(model=model, api_key=key, base_url=base_url,
                          temperature=0, timeout=60, max_tokens=800,
                          callbacks=[timer] if timer else None)
-        primary = (
+
+        structured = (
             PROMPT
             | llm.with_structured_output(SQLPlan)
             | RunnableLambda(lambda p: (p.sql or "").strip().rstrip(";"))
         )
-        text_chain = PROMPT | llm | StrOutputParser() | RunnableLambda(extract_sql)
+        plain = PROMPT | llm | StrOutputParser() | RunnableLambda(extract_sql)
 
-    rule_chain = RunnableLambda(lambda x: rule_based(x["question"]))
+        primary = _stage(structured, "结构化输出")
+        text_chain = _stage(plain, "纯文本兜底")
+
+    rule_chain = _stage(RunnableLambda(lambda x: rule_based(x["question"])), "规则兜底")
 
     return primary.with_fallbacks([text_chain, rule_chain])
 
@@ -200,7 +217,7 @@ def exec_step(payload):
 
 def build_chain(env, timer=None):
     return (
-        RunnablePassthrough.assign(sql=build_sql_chain(env, timer))
+        build_sql_chain(env, timer)      # 输出已含 sql 与 stage
         | RunnableLambda(guard_step)
         | RunnableLambda(exec_step)
     )
@@ -215,16 +232,28 @@ def ask(question, env, verbose=True):
     schema_txt = open(SCHEMA_TXT, encoding="utf-8").read()
 
     provider = resolve_provider(env)
-    mode = provider[3] if provider else "规则模式（未配置 API Key）"
+    base_mode = provider[3] if provider else "规则模式（未配置 API Key）"
 
     t0 = time.time()
     try:
         out = chain.invoke({"question": question, "schema": schema_txt})
     except Exception as e:
         # 连规则兜底都失败，说明是代码问题而不是配置问题，如实抛出
-        return {"question": question, "mode": mode, "ok": False, "sql": "",
+        return {"question": question, "mode": f"{base_mode}（链路异常）", "ok": False, "sql": "",
                 "problems": [f"{type(e).__name__}: {e}"], "rows": []}
     elapsed = round(time.time() - t0, 2)
+
+    # 按实际命中的层级显示模式，而不是按「有没有配 Key」猜。
+    # 配了 Key 但调用失败时 SQL 来自规则链，若仍显示服务商名，等于让规则结果冒充模型能力。
+    stage = out.get("stage") or "未知"
+    if provider is None:
+        mode = "规则模式（未配置 API Key）"
+    elif stage == "规则兜底":
+        mode = f"{provider[3]} 调用失败，已降级为规则模式"
+    elif stage == "纯文本兜底":
+        mode = f"{provider[3]}（结构化输出不可用，已退到纯文本）"
+    else:
+        mode = f"{provider[3]}（{stage}）"
 
     result = {
         "question": question,

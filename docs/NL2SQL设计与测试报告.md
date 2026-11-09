@@ -361,6 +361,47 @@ return primary.with_fallbacks([text_chain, rule_chain])
 
 一个刻意的设计：**没有 Key 时不让主链被绕开，而是让它真的抛异常，交给 fallback 接住**。这样「降级机制」每次运行都在被真实验证，不会等到真出事才发现 fallback 早就失效了。
 
+### 8.3.1 自查发现的一个问题：模式标注会撒谎
+
+第一版写完，我用「无效 Key」跑了一次，输出是这样的：
+
+```
+问题：用户价值分层结构是什么样的
+模式：deepseek（3.6s）          ← 显示的是服务商名
+生成 SQL：
+SELECT user_segment, user_cnt, ... FROM ydsh_ads.ads_user_segment ...
+```
+
+SQL 实际来自规则链（三级降级全部走完了），但模式显示「deepseek」。**这正是本文档 5.2 节批评过的那件事——让规则结果冒充模型能力。**
+
+原因：`mode` 是按「有没有配置 Key」推断的，不是按「实际命中了哪一级」。
+
+第一次修法用了 `contextvars`：在每一级降级执行前 `set()` 一个层级名，`ask()` 里 `get()` 出来。结果读出来永远是初始值 `未执行`。原因是 **LangChain 的 `RunnableParallel` 在线程池里执行，`contextvars` 会被复制到子线程，子线程里的 `set()` 主线程读不到**。
+
+正确修法是让层级作为**数据**在管道里流动，而不是作为外部状态：
+
+```python
+def _stage(runner, name):
+    """把「这一级叫什么」写进输出"""
+    return RunnablePassthrough.assign(
+        sql=runner,
+        stage=RunnableLambda(lambda _: name),
+    )
+```
+
+三级降级各自打标，最终成功的那个把 `stage` 写进结果，`ask()` 直接读 `out["stage"]`。修复后：
+
+```
+模式：规则模式（未配置 API Key）              ← 无 Key
+模式：deepseek 调用失败，已降级为规则模式      ← 有 Key 但 401
+模式：deepseek（结构化输出）                  ← 正常（待配 Key 验证）
+```
+
+这个问题的价值在于：它和我批评的错误是同一个。写代码时想着「不能让规则结果冒充模型」，实现时却因为**判断依据选错**（用配置推断结果，而不是用实际执行路径）把同一个错误又犯了一遍。判断依据必须来自执行结果，不能来自执行前的假设。
+
+记在这里，因为它比「一次跑通」更能说明问题。
+
+
 ### 8.4 链路结构（框架自动生成）
 
 ```
