@@ -94,7 +94,7 @@ def build_messages(question, schema_txt):
 # 3. 大模型调用
 # ----------------------------------------------------------------------
 def call_llm(messages, env):
-    """优先 DeepSeek，其次通义千问。
+    """调用大模型，服务商由 llm_provider 统一解析（DeepSeek / 通义 / 硅基流动 / Kimi / 智谱）。
 
     返回 (内容, 错误信息)：
       - 未配置 Key            -> (None, None)
@@ -104,21 +104,17 @@ def call_llm(messages, env):
     区分「没配 Key」和「配了但失败」很重要：前者是预期内的降级，
     后者是故障，必须让上层把原因显示出来，不能悄悄当成规则模式。
     """
-    key = env.get("DEEPSEEK_API_KEY") or os.environ.get("DEEPSEEK_API_KEY")
-    if key:
-        base_url, model = "https://api.deepseek.com", env.get("DEEPSEEK_MODEL", "deepseek-chat")
-    else:
-        key = env.get("DASHSCOPE_API_KEY") or os.environ.get("DASHSCOPE_API_KEY")
-        if not key:
-            return None, None
-        base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-        model = env.get("DASHSCOPE_MODEL", "qwen-plus")
+    from llm_provider import resolve
+
+    p = resolve(env)
+    if p is None:
+        return None, None
 
     try:
         from openai import OpenAI
-        client = OpenAI(api_key=key, base_url=base_url, timeout=60)
+        client = OpenAI(api_key=p.key, base_url=p.base_url, timeout=60)
         resp = client.chat.completions.create(
-            model=model,
+            model=p.model,
             messages=messages,
             temperature=0,
             max_tokens=800,

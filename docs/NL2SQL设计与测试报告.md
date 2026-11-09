@@ -239,7 +239,7 @@ ok = True                                  ← 校验放行
 
 **本次测试是在「规则模式」下跑的，不是真实大模型生成。**
 
-原因：当前环境没有配置大模型 API Key（`DEEPSEEK_API_KEY` / `DASHSCOPE_API_KEY` 均未设置）。`nl2sql.py` 检测到无 Key 后自动降级为内置规则匹配，覆盖上述 6 类问法。
+原因：当前环境没有配置大模型 API Key（五家服务商 `DEEPSEEK_API_KEY` / `DASHSCOPE_API_KEY` / `SILICONFLOW_API_KEY` / `MOONSHOT_API_KEY` / `ZHIPU_API_KEY` 均未设置）。`nl2sql.py` 检测到无 Key 后自动降级为内置规则匹配，覆盖上述 6 类问法。
 
 这意味着：
 
@@ -249,15 +249,22 @@ ok = True                                  ← 校验放行
 
 这个区别必须写清楚。把规则模式的结果当成模型效果汇报，是自欺。
 
+**但「只差 Key」这件事本身是可以证明的。** 用无效 Key 分别打五家接口，全部返回 401 鉴权失败而非连接超时或 DNS 错误（实测记录见 8.6 节），说明：网络可达、OpenAI 兼容协议正确、`base_url` 与请求体格式正确，唯一缺的是一枚有效密钥。
+
 ### 5.3 如何切换到真实模型
 
 ```bash
 cp .env.example .env
-# 编辑 .env，填入 DEEPSEEK_API_KEY=sk-xxxx
-python python/nl2sql.py --batch
+# 编辑 .env，填入任意一家：DEEPSEEK_API_KEY=sk-xxxx
+python python/llm_ping.py          # 先验证连通性
+python python/nl2sql.py --batch    # 手写 SDK 版
+python python/nl2sql_chain.py --batch   # LangChain 编排版
 ```
 
-代码已就绪，`call_llm()` 走 OpenAI 兼容接口，切换 Key 后无需改任何逻辑。届时输出中的「模式」会从「规则模式」变为「大模型」。
+代码已就绪，切换 Key 后无需改任何逻辑，输出中的「模式」会从「规则模式」变为实际服务商名。
+
+服务商由 `python/llm_provider.py` 统一解析，支持五家（DeepSeek / 通义千问 / 硅基流动 / Kimi / 智谱），全部走 OpenAI 兼容协议。其中硅基流动与智谱有长期免费模型，可用零成本完成真实调用验证。要新增一家只改 `PROVIDERS` 字典，三个脚本自动生效。
+
 
 ### 5.4 密钥管理
 
@@ -276,7 +283,7 @@ python python/nl2sql.py --batch
 
 | 问题 | 现状 | 改进 |
 |---|---|---|
-| 模型能力未验证 | 无 Key，规则降级 | 配 Key 后重跑 6 条测试并记录 SQL 原文 |
+| 模型能力未验证 | 无 Key，规则降级 | 配 Key 后重跑 6 条测试并记录 SQL 原文，并用 `--compare` 做两版真实对照 |
 | 无多轮追问 | 单轮问答 | 加对话历史，支持「那上个月呢」这类指代 |
 | 无结果解释 | 只返表 | 让模型对结果做一句话解读（但要标注是模型生成） |
 | 无查询缓存 | 每次重新执行 | 相同问题命中缓存，降低 Hive 压力 |
@@ -299,3 +306,189 @@ python python/nl2sql.py --batch
 # 4. 单条提问
 python python/nl2sql.py "广东省的销售额是多少"
 ```
+
+---
+
+## 八、LangChain 编排版实现
+
+### 8.1 为什么补这一版
+
+任务书子任务 4 点名要求「用 LangChain 实现 NL2SQL」。第一版交付用的是 OpenAI SDK 直连 + 自写 Prompt + 自写校验，理由是链路只有「一次生成 + 一次校验」，框架会掩盖细节。
+
+这个理由在工程上站得住，但它回答的是「我为什么那样做」，不是「任务书为什么那样要求」。评审看的是能不能按指定技术栈实现。所以补一个 LangChain 版，两版并存，用同一批问题对比——这比争论哪个更好更有说服力。
+
+`python/nl2sql_chain.py`，与 `python/nl2sql.py` 共用同一个校验器、同一个执行器、同一份 Schema，只替换编排层。
+
+### 8.2 编排方式的差异
+
+| 环节 | 手写版 `nl2sql.py` | LangChain 版 `nl2sql_chain.py` |
+|---|---|---|
+| Prompt | 手工拼 `dict` 列表，few-shot 靠 append | `ChatPromptTemplate.from_messages`，声明式 |
+| 输出解析 | 正则抽 ` ```sql ` 代码块 | `with_structured_output(SQLPlan)` + Pydantic 模型 |
+| 降级 | `if/else` 判断有没有 Key | `Runnable.with_fallbacks` 三级自动降级 |
+| 执行编排 | 顺序调用函数 | LCEL 管道 `prompt \| llm \| parse \| guard \| exec` |
+| 链路可视化 | 无 | `chain.get_graph().draw_ascii()` 自动生成 |
+| 耗时观测 | 无 | `BaseCallbackHandler` 逐步计时与 token 统计 |
+
+结构化输出模型：
+
+```python
+class SQLPlan(BaseModel):
+    sql: str = Field(description="单条 Hive SELECT 语句，不带结尾分号")
+    tables_used: list[str] = Field(default_factory=list, description="引用到的完整表名")
+    reasoning: str = Field(default="", description="一句话说明选表和聚合的理由")
+```
+
+手写版要靠正则从自然语言里抠 SQL，模型多说一句「以下是查询：」就得靠容错；结构化输出把这件事交给协议层，`Reasoning` 字段还顺带产出了可审计的选表理由。
+
+### 8.3 三级降级：框架在这里确实省事
+
+```
+1. 结构化输出   prompt | llm.with_structured_output(SQLPlan)
+        ↓ 模型不支持 function calling / json mode
+2. 纯文本兜底   prompt | llm | StrOutputParser | 正则抽 SQL
+        ↓ 无 Key / 网络不通 / 额度用尽
+3. 规则兜底     rule_based()
+```
+
+代码只有一行：
+
+```python
+return primary.with_fallbacks([text_chain, rule_chain])
+```
+
+手写版要实现同等的三级降级，得三层嵌套 `try/except`，而且很容易漏掉某一层的异常类型。
+
+一个刻意的设计：**没有 Key 时不让主链被绕开，而是让它真的抛异常，交给 fallback 接住**。这样「降级机制」每次运行都在被真实验证，不会等到真出事才发现 fallback 早就失效了。
+
+### 8.3.1 自查发现的一个问题：模式标注会撒谎
+
+第一版写完，我用「无效 Key」跑了一次，输出是这样的：
+
+```
+问题：用户价值分层结构是什么样的
+模式：deepseek（3.6s）          ← 显示的是服务商名
+生成 SQL：
+SELECT user_segment, user_cnt, ... FROM ydsh_ads.ads_user_segment ...
+```
+
+SQL 实际来自规则链（三级降级全部走完了），但模式显示「deepseek」。**这正是本文档 5.2 节批评过的那件事——让规则结果冒充模型能力。**
+
+原因：`mode` 是按「有没有配置 Key」推断的，不是按「实际命中了哪一级」。
+
+第一次修法用了 `contextvars`：在每一级降级执行前 `set()` 一个层级名，`ask()` 里 `get()` 出来。结果读出来永远是初始值 `未执行`。原因是 **LangChain 的 `RunnableParallel` 在线程池里执行，`contextvars` 会被复制到子线程，子线程里的 `set()` 主线程读不到**。
+
+正确修法是让层级作为**数据**在管道里流动，而不是作为外部状态：
+
+```python
+def _stage(runner, name):
+    """把「这一级叫什么」写进输出"""
+    return RunnablePassthrough.assign(
+        sql=runner,
+        stage=RunnableLambda(lambda _: name),
+    )
+```
+
+三级降级各自打标，最终成功的那个把 `stage` 写进结果，`ask()` 直接读 `out["stage"]`。修复后：
+
+```
+模式：规则模式（未配置 API Key）              ← 无 Key
+模式：deepseek 调用失败，已降级为规则模式      ← 有 Key 但 401
+模式：deepseek（结构化输出）                  ← 正常（待配 Key 验证）
+```
+
+这个问题的价值在于：它和我批评的错误是同一个。写代码时想着「不能让规则结果冒充模型」，实现时却因为**判断依据选错**（用配置推断结果，而不是用实际执行路径）把同一个错误又犯了一遍。判断依据必须来自执行结果，不能来自执行前的假设。
+
+记在这里，因为它比「一次跑通」更能说明问题。
+
+
+### 8.4 链路结构（框架自动生成）
+
+```
+            +--------------------+
+            | Parallel<sql>Input |
+            +--------------------+
+               ***           ***
+             **                 **
+           **                     **
++---------------+             +-------------+
+| WithFallbacks |             | Passthrough |
++---------------+             +-------------+
+               ***           ***
+                  **       **
+                    **   **
+            +---------------------+
+            | Parallel<sql>Output |
+            +---------------------+
+                       *
+                +------------+
+                | guard_step |      ← 复用 15 条对抗测试验证过的校验器
+                +------------+
+                       *
+                +-----------+
+                | exec_step |      ← 复用 beeline 执行器
+                +-----------+
+```
+
+`--graph` 参数直接打印这张图。这是框架相对手写最直观的收益：链路结构不用看代码，跑一下就有。
+
+### 8.5 A/B 实测结果
+
+同一批 6 条问题，两条链路各跑一遍（`python python/nl2sql_chain.py --compare`）：
+
+| 问题 | LangChain | 手写版 | SQL 一致 |
+|---|---|---|---|
+| 2024 年 6 月的总 GMV 是多少？ | ✅ | ✅ | ✅ |
+| 销量最高的前 5 个品类 | ✅ | ✅ | ✅ |
+| 用户价值分层结构是什么样的 | ✅ | ✅ | ✅ |
+| 列出所有核心 KPI 指标 | ✅ | ✅ | ✅ |
+| 2024 年每个月的 GMV 趋势 | ✅ | ✅ | ✅ |
+| 广东省的销售额是多少 | ✅ | ✅ | ✅ |
+
+```
+SQL 完全一致：6/6   |   两版均执行成功：6/6
+```
+
+结果写入 `data/nl2sql_ab_compare.json`。
+
+注意这次对照的局限性：**两版都跑在规则模式下，SQL 一致是必然的**（都来自同一份 `rule_based()`）。它证明的是「编排层替换后行为等价、没有回归」，不能证明两版在真实模型下的生成质量差异。等配置 Key 后需要重跑一次 `--compare`，那才是有意义的对照。
+
+### 8.6 五家服务商的连通性实测
+
+用无效 Key（`sk-invalid-probe-000000000000`）分别请求五家接口，记录返回：
+
+| 服务商 | 耗时 | 返回 | 判定 |
+|---|---|---|---|
+| DeepSeek | 0.6s | `401 Authentication Fails, Your api key: ****0000 is invalid` | 网络通、协议对 |
+| 通义千问 | 0.7s | `401 Incorrect API key provided` | 网络通、协议对 |
+| 硅基流动 | 0.5s | `401 Token is invalid` | 网络通、协议对 |
+| Kimi | 0.6s | `401 Invalid Authentication` | 网络通、协议对 |
+| 智谱 GLM | 0.5s | `401 令牌已过期或验证不正确` | 网络通、协议对 |
+
+五家全部返回 **401 鉴权失败**，没有一家是连接超时、DNS 失败或 TLS 握手错误。这说明请求确实到达了对方的鉴权层——`base_url` 正确、路径正确、请求体格式正确，唯一的问题是密钥无效。
+
+这个测试的价值在于：它把「没配 Key」这个笼统的说法，拆成了可验证的结论。配 Key 之前就能确定，剩下的唯一变量就是密钥本身。
+
+对照记录：本机 `github.com:443` 曾被阻断（见 Git 协同记录），但五个模型接口全部可达。网络问题不能一概而论，得逐个测。
+
+### 8.7 什么时候用哪一版
+
+| 场景 | 建议 | 理由 |
+|---|---|---|
+| 作业/评审，要求指定技术栈 | LangChain 版 | 按要求交付 |
+| 自己调试 Prompt 与校验逻辑 | 手写版 | 少一层抽象，异常栈直指代码行 |
+| 要加多轮追问、工具调用、RAG | LangChain 版 | `Runnable` 组合与 memory 组件现成 |
+| 只跑一次固定查询 | 手写版 | 不值得为一次调用引入框架依赖 |
+
+两版共用 `validate()` / `run_sql()` / `rule_based()`，任何一处修复同时生效，不会漂移。
+
+### 8.8 复现
+
+```bash
+pip install langchain langchain-openai grandalf
+
+python python/nl2sql_chain.py --graph     # 看链路结构
+python python/nl2sql_chain.py --batch     # 跑 6 条问题
+python python/nl2sql_chain.py --compare   # 与手写版 A/B 对照
+```
+

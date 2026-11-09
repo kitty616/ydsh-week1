@@ -17,47 +17,91 @@ llm_ping.py —— 大模型 API 最小化连通性验证
   这个脚本 3 秒就能告诉你问题出在哪一层。
 
 用法：
-  1) 复制 .env.example 为 .env，填入真实 Key
-  2) python python/llm_ping.py
-  3) python python/llm_ping.py --model deepseek-chat --prompt "只回复 OK"
+  python python/llm_ping.py                  # 用优先级最高的已配置服务商
+  python python/llm_ping.py --all            # 逐个探测所有已配置的服务商
+  python python/llm_ping.py --provider zhipu --model glm-4-flash
+  python python/llm_ping.py --prompt "只回复 OK"
 
-退出码：0 = 连通正常；1 = 失败（原因见输出）
+退出码：0 = 至少一个服务商连通；1 = 全部失败或未配置
 """
 import argparse
-import os
 import sys
+import os
 import time
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(BASE, "python"))
 
+from llm_provider import PROVIDERS, configured, resolve, signup_hints  # noqa: E402
 from nl2sql import load_env  # noqa: E402
 
-PROVIDERS = {
-    "deepseek": {
-        "key_env": "DEEPSEEK_API_KEY",
-        "base_url": "https://api.deepseek.com",
-        "default_model": "deepseek-chat",
-        "console": "https://platform.deepseek.com/api_keys",
-    },
-    "dashscope": {
-        "key_env": "DASHSCOPE_API_KEY",
-        "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
-        "default_model": "qwen-plus",
-        "console": "https://bailian.console.aliyun.com/",
-    },
-}
 
+def ping(p, prompt, model=None, quiet=False):
+    """对单个 Provider 发一次最小调用，返回 (成功?, 耗时, 说明)"""
+    model = model or p.model
+    if not quiet:
+        print(f"服务商    : {p.name}")
+        print(f"接口地址  : {p.base_url}")
+        print(f"模型      : {model}")
+        print(f"Key       : {p.masked_key}（长 {len(p.key)}）")
+        print(f"提示词    : {prompt}")
+        print("-" * 66)
 
-def pick_provider(env, forced=None):
-    """选出可用的 provider；forced 指定时只试那一个"""
-    order = [forced] if forced else ["deepseek", "dashscope"]
-    for name in order:
-        cfg = PROVIDERS[name]
-        key = env.get(cfg["key_env"]) or os.environ.get(cfg["key_env"])
-        if key:
-            return name, cfg, key
-    return None, None, None
+    try:
+        from openai import OpenAI
+    except ImportError:
+        return False, 0, "未安装 openai 库，请先执行：pip install openai"
+
+    t0 = time.time()
+    try:
+        client = OpenAI(api_key=p.key, base_url=p.base_url, timeout=60)
+        resp = client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0,
+            max_tokens=50,
+        )
+    except Exception as e:
+        cost = time.time() - t0
+        msg = str(e)
+        if not quiet:
+            print(f"✗ 调用失败，耗时 {cost:.1f}s")
+            print(f"  异常类型：{type(e).__name__}")
+            print(f"  异常信息：{msg[:300]}")
+            print()
+            print("排查建议：")
+            low = msg.lower()
+            if "401" in low or "auth" in low:
+                print("  · 401 / 鉴权失败 → Key 填错、已失效，或复制时带了空格引号")
+            elif "404" in low or "model" in low:
+                print("  · 模型名不存在 → 用 --model 指定该服务商实际提供的模型")
+            elif "timeout" in low or "connect" in low:
+                print("  · 网络不通 → 检查代理设置；本机 github.com 曾出现 443 被阻断")
+            elif "quota" in low or "balance" in low or "402" in low or "429" in low:
+                print("  · 额度不足 / 限流 → 账号余额用完或触发频率限制，需充值或降低频率")
+            else:
+                print("  · 先确认 base_url 与 model 是否属于同一服务商")
+        return False, round(cost, 2), f"{type(e).__name__}: {msg[:120]}"
+
+    cost = time.time() - t0
+
+    # 校验返回结构确实是 OpenAI 兼容格式，而不是某家改过的私有结构
+    try:
+        content = resp.choices[0].message.content
+    except (AttributeError, IndexError, KeyError) as e:
+        return False, round(cost, 2), f"返回格式不符合 OpenAI 兼容协议：{type(e).__name__}"
+
+    usage = getattr(resp, "usage", None)
+    if not quiet:
+        print(f"✓ 调用成功，耗时 {cost:.2f}s")
+        print()
+        print(f"返回内容  : {content!r}")
+        print(f"模型回显  : {getattr(resp, 'model', '(无)')}")
+        print(f"结束原因  : {resp.choices[0].finish_reason}")
+        if usage:
+            print(f"token 用量: prompt={usage.prompt_tokens} "
+                  f"completion={usage.completion_tokens} total={usage.total_tokens}")
+    return True, round(cost, 2), (content or "")[:40]
 
 
 def main():
@@ -65,96 +109,63 @@ def main():
     ap.add_argument("--provider", choices=list(PROVIDERS), help="强制指定服务商")
     ap.add_argument("--model", help="覆盖默认模型名")
     ap.add_argument("--prompt", default="请只回复两个字：收到", help="测试用提示词")
+    ap.add_argument("--all", action="store_true", help="遍历所有已配置的服务商")
     args = ap.parse_args()
 
     env = load_env()
-    name, cfg, key = pick_provider(env, args.provider)
 
     print("=" * 66)
     print("大模型 API 连通性验证")
     print("=" * 66)
 
-    if not key:
+    # --all：逐家探测，做成对照表
+    if args.all:
+        names = configured(env)
+        if not names:
+            print("✗ 没有任何已配置的 API Key，无法遍历。")
+            _print_signup()
+            return 1
+        results = []
+        for n in names:
+            p = resolve(env, forced=n)
+            ok, cost, note = ping(p, args.prompt, quiet=True)
+            results.append((n, p.model, ok, cost, note))
+            print(f"{'✓' if ok else '✗'} {n:<12} {p.model:<28} {cost:>6.2f}s  {note}")
+        print("-" * 66)
+        ok_cnt = sum(1 for r in results if r[2])
+        print(f"连通 {ok_cnt}/{len(results)}")
+        return 0 if ok_cnt else 1
+
+    p = resolve(env, args.provider)
+
+    if p is None:
         print("✗ 未找到任何 API Key")
         print()
-        print("请按以下步骤配置：")
-        print(f"  1) 申请 Key：{PROVIDERS['deepseek']['console']}")
-        print("  2) 复制模板：cp .env.example .env")
-        print("  3) 在 .env 中填入 DEEPSEEK_API_KEY=sk-xxxx")
-        print()
-        print("注意：.env 已被 .gitignore 排除，不会进入版本库。")
-        print("      不要把 Key 贴进聊天记录或提交到仓库。")
+        _print_signup()
         return 1
 
-    model = args.model or env.get(f"{name.upper()}_MODEL") or cfg["default_model"]
-    masked = key[:6] + "*" * 8 + key[-4:] if len(key) > 12 else "****"
-
-    print(f"服务商    : {name}")
-    print(f"接口地址  : {cfg['base_url']}")
-    print(f"模型      : {model}")
-    print(f"Key       : {masked}（长 {len(key)}）")
-    print(f"提示词    : {args.prompt}")
-    print("-" * 66)
-
-    try:
-        from openai import OpenAI
-    except ImportError:
-        print("✗ 未安装 openai 库，请先执行：pip install openai")
+    ok, _, _ = ping(p, args.prompt, model=args.model)
+    if not ok:
         return 1
 
-    t0 = time.time()
-    try:
-        client = OpenAI(api_key=key, base_url=cfg["base_url"], timeout=60)
-        resp = client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": args.prompt}],
-            temperature=0,
-            max_tokens=50,
-        )
-    except Exception as e:
-        cost = time.time() - t0
-        print(f"✗ 调用失败，耗时 {cost:.1f}s")
-        print(f"  异常类型：{type(e).__name__}")
-        print(f"  异常信息：{str(e)[:300]}")
-        print()
-        print("排查建议：")
-        msg = str(e).lower()
-        if "401" in msg or "auth" in msg:
-            print("  · 401 / 鉴权失败 → Key 填错、已失效，或复制时带了空格引号")
-        elif "404" in msg or "model" in msg:
-            print("  · 模型名不存在 → 用 --model 指定该服务商实际提供的模型")
-        elif "timeout" in msg or "connect" in msg:
-            print("  · 网络不通 → 检查代理设置；本机 github.com 曾出现 443 被阻断")
-        elif "quota" in msg or "balance" in msg or "402" in msg:
-            print("  · 额度不足 → 账号余额用完，需充值")
-        else:
-            print("  · 先确认 base_url 与 model 是否属于同一服务商")
-        return 1
-
-    cost = time.time() - t0
-
-    # 校验返回结构确实是 OpenAI 兼容格式，而不是某家改过的私有结构
-    content = None
-    try:
-        content = resp.choices[0].message.content
-    except (AttributeError, IndexError, KeyError) as e:
-        print(f"✗ 返回格式不符合 OpenAI 兼容协议：{type(e).__name__}")
-        print(f"  原始返回：{str(resp)[:300]}")
-        return 1
-
-    usage = getattr(resp, "usage", None)
-    print(f"✓ 调用成功，耗时 {cost:.2f}s")
     print()
-    print(f"返回内容  : {content!r}")
-    print(f"模型回显  : {getattr(resp, 'model', '(无)')}")
-    print(f"结束原因  : {resp.choices[0].finish_reason}")
-    if usage:
-        print(f"token 用量: prompt={usage.prompt_tokens} "
-              f"completion={usage.completion_tokens} total={usage.total_tokens}")
-    print()
-    print("连通性验证通过。可以继续跑 python/nl2sql.py 了。")
-    print("提示：nl2sql.py 会自动读取同一个 .env，无需重复配置。")
+    print("连通性验证通过。可以继续跑：")
+    print("  python python/nl2sql.py --batch          # 手写 SDK 版")
+    print("  python python/nl2sql_chain.py --batch    # LangChain 编排版")
+    print("提示：两个脚本读取同一个 .env，无需重复配置。")
     return 0
+
+
+def _print_signup():
+    print("请按以下步骤配置（任选一家即可，第 3、5 家有长期免费模型）：")
+    for i, (name, url, note) in enumerate(signup_hints(), 1):
+        print(f"  {i}) {name:<12} {url}")
+        print(f"      {note}")
+    print()
+    print("  然后：cp .env.example .env，把 Key 填进去")
+    print()
+    print("注意：.env 已被 .gitignore 排除，不会进入版本库。")
+    print("      不要把 Key 贴进聊天记录或提交到仓库。")
 
 
 if __name__ == "__main__":
