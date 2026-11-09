@@ -76,13 +76,13 @@ def _stage(runner, name):
 # 1. 模型供应商解析（与手写版保持一致，便于对照）
 # ----------------------------------------------------------------------
 def resolve_provider(env):
-    """统一走 llm_provider 解析，返回 (api_key, base_url, model, 名称)；无可用 Key 时返回 None"""
+    """统一走 llm_provider 解析，返回 (api_key, base_url, model, 名称, 附加参数)；无可用 Key 时返回 None"""
     from llm_provider import resolve
 
     p = resolve(env)
     if p is None:
         return None
-    return (p.key, p.base_url, p.model, p.name)
+    return (p.key, p.base_url, p.model, p.name, p.extra_body)
 
 
 # ----------------------------------------------------------------------
@@ -178,9 +178,12 @@ def build_sql_chain(env, timer=None):
         text_chain = _stage(RunnableLambda(no_key), "纯文本兜底")
     else:
         from langchain_openai import ChatOpenAI
-        key, base_url, model, _ = provider
+        key, base_url, model, _, extra_body = provider
+        # max_tokens 4096：GLM-5.x 这类「始终思考」模型会先把预算花在
+        # reasoning_content 上，800 在长 Prompt 上必然正文为空
         llm = ChatOpenAI(model=model, api_key=key, base_url=base_url,
-                         temperature=0, timeout=60, max_tokens=800,
+                         temperature=0, timeout=120, max_tokens=4096,
+                         extra_body=extra_body,
                          callbacks=[timer] if timer else None)
 
         structured = (

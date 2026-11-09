@@ -62,9 +62,16 @@ SYSTEM_PROMPT = """你是云购生活数仓的 Hive SQL 专家。
 3. 表名必须带库名前缀，例如 ydsh_dws.dws_trade_day，不要写裸表名。
 4. 日期字段是字符串（yyyy-MM-dd 或 yyyy-MM），比较时用字符串即可，不要套 date 函数猜格式。
 5. 优先使用 ADS 层的成品指标表；ADS 没有的再往下用 DWS，最后才用 DWD 明细表。
-6. 中文别名用英文引号或直接省略；列名不要加库名。
+6. 标识符（含中文列别名）用反引号包裹，如 AS `华东GMV`；字符串常量用单引号；
+   禁止使用双引号——Hive 把双引号内容当字符串字面量，写在别名位置会直接语法错误。列名不要加库名。
 7. 结果默认按业务含义排序（金额降序 / 日期升序），必要时加 LIMIT。
 8. 用户问「销售额 / 成交额 / GMV」时默认指 gmv 字段（实付金额合计）。
+9. 数仓是 2024 年的历史快照。「上周 / 上月 / 今天 / 最近 N 天」这类相对时间，
+   必须以数据最新日期为基准换算，禁止使用 current_date() / unix_timestamp()，
+   否则条件永远落在空区间，聚合结果是 NULL 而不是报错。
+10. 只输出用户问的指标列，不要额外附加日期范围等辅助列；一旦用了聚合函数，
+   SELECT 里所有非聚合列（包括子查询带出来的列）都必须写进 GROUP BY，
+   Hive 不做隐式分组推断，漏写直接 SemanticException。
 
 只输出 SQL，用 ```sql 代码块包裹。"""
 
@@ -112,14 +119,27 @@ def call_llm(messages, env):
 
     try:
         from openai import OpenAI
-        client = OpenAI(api_key=p.key, base_url=p.base_url, timeout=60)
+        client = OpenAI(api_key=p.key, base_url=p.base_url, timeout=120)
         resp = client.chat.completions.create(
             model=p.model,
             messages=messages,
             temperature=0,
-            max_tokens=800,
+            # 4096 而不是 800：新一代模型里有一类是「始终思考」的（如 GLM-5.x），
+            # 正文之前先输出一段 reasoning_content，且这段也计入 max_tokens。
+            # 实测 GLM-5.3 在长 Prompt 上想过 7000 多字，预算给小了正文就是空字符串，
+            # 表现成 content 为空、finish_reason=length，很容易被误判成「模型不听话」。
+            max_tokens=4096,
+            extra_body=p.extra_body,
         )
-        return resp.choices[0].message.content, None
+        ch = resp.choices[0]
+        content = ch.message.content
+        if not content:
+            reasoning = getattr(ch.message, "reasoning_content", "") or ""
+            if ch.finish_reason == "length":
+                return None, (f"正文为空：max_tokens 被思考内容耗尽"
+                              f"（已思考 {len(reasoning)} 字）")
+            return None, f"正文为空（finish_reason={ch.finish_reason}）"
+        return content, None
     except Exception as e:  # 网络抖动、额度用尽、模型下线都可能，不能让它打断整条链路
         return None, f"{type(e).__name__}: {str(e)[:120]}"
 
@@ -175,6 +195,14 @@ def validate(sql, schema):
 
     if not s:
         return False, s, ["模型没有返回 SQL"]
+
+    # 引号归一化：Hive 里双引号是字符串字面量，不能当标识符用。
+    # 实测模型会把中文别名写成 AS "华东GMV"，语义没毛病但执行必报 ParseException。
+    # 按 Hive 语义分两步改，不做模糊猜测：
+    #   AS "x"   -> AS `x`   （别名是标识符位置，要反引号）
+    #   其余 "x" -> 'x'      （剩下的是字符串字面量，双引号在 Hive 里本就等同单引号）
+    s = re.sub(r'(?i)\bas\s+"([^"]*)"', r"AS `\1`", s)
+    s = re.sub(r'"([^"]*)"', r"'\1'", s)
 
     if DANGEROUS.search(s):
         problems.append("包含写操作关键字，已拦截")

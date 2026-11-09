@@ -79,7 +79,10 @@ def ping(p, prompt, model=None, quiet=False):
             model=model,
             messages=[{"role": "user", "content": prompt}],
             temperature=0,
-            max_tokens=50,
+            # 512 而不是 50：GLM-5.x 这类「始终思考」的模型会先输出一段
+            # reasoning_content，这段同样计入 max_tokens。预算给小了正文就是空字符串，
+            # 看起来像模型没回答，其实是被思考吃光了。
+            max_tokens=512,
         )
     except Exception as e:
         cost = time.time() - t0
@@ -119,12 +122,28 @@ def ping(p, prompt, model=None, quiet=False):
         return False, round(cost, 2), f"返回格式不符合 OpenAI 兼容协议：{type(e).__name__}"
 
     usage = getattr(resp, "usage", None)
+    finish = resp.choices[0].finish_reason
+    reasoning = getattr(resp.choices[0].message, "reasoning_content", "") or ""
+
+    # 正文为空不等于调用失败，但对使用者来说等同于失败，必须单独报出来
+    if not (content or "").strip():
+        note = "返回正文为空"
+        if finish == "length":
+            note += f"：max_tokens 被思考内容耗尽（已思考 {len(reasoning)} 字），调大 max_tokens 即可"
+        else:
+            note += f"（finish_reason={finish}）"
+        if not quiet:
+            print(f"✗ {note}")
+        return False, round(cost, 2), note
+
     if not quiet:
         print(f"✓ 调用成功，耗时 {cost:.2f}s")
         print()
         print(f"返回内容  : {content!r}")
         print(f"模型回显  : {getattr(resp, 'model', '(无)')}")
-        print(f"结束原因  : {resp.choices[0].finish_reason}")
+        print(f"结束原因  : {finish}")
+        if reasoning:
+            print(f"思考内容  : {len(reasoning)} 字（该模型始终思考，计入 max_tokens）")
         if usage:
             print(f"token 用量: prompt={usage.prompt_tokens} "
                   f"completion={usage.completion_tokens} total={usage.total_tokens}")

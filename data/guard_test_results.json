@@ -1,6 +1,6 @@
 {
-  "passed": 15,
-  "total": 15,
+  "passed": 17,
+  "total": 17,
   "detail": [
     {
       "case": "正常查询（带库名）",
@@ -154,6 +154,24 @@
       "rewrite_ok": true,
       "problems": [],
       "sql_after": "SELECT dt FROM ydsh_dws.dws_trade_day LIMIT 3"
+    },
+    {
+      "case": "引号：双引号别名应改成反引号",
+      "expect": true,
+      "actual": true,
+      "expect_sql": "AS `华东GMV`",
+      "rewrite_ok": true,
+      "problems": [],
+      "sql_after": "SELECT ROUND(SUM(gmv), 2) AS `华东GMV` FROM ydsh_ads.ads_monthly_trend\nLIMIT 200"
+    },
+    {
+      "case": "引号：双引号字符串应改成单引号",
+      "expect": true,
+      "actual": true,
+      "expect_sql": "LIKE '%广东%'",
+      "rewrite_ok": true,
+      "problems": [],
+      "sql_after": "SELECT province FROM ydsh_dwd.dim_store WHERE province LIKE '%广东%'\nLIMIT 200"
     }
   ]
 }

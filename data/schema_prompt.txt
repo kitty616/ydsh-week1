@@ -1,3 +1,5 @@
+-- 数据覆盖区间：2024-01-01 ~ 2024-12-31（2024 年历史快照，非实时数据）
+
 -- ydsh_ads.ads_kpi_core（核心 KPI 指标长表，每个指标一行，含口径说明）
    metric_code string  // 指标编码，如 KPI_GMV,
    metric_name string  // 指标中文名，如 GMV 成交总额,
@@ -115,8 +117,8 @@
 -- ydsh_dwd.dim_store（门店维度表）
    store_id string  // 门店编号,
    store_name string  // 门店名称,
-   province string  // 省份,
-   city string  // 城市,
+   province string  // 省份全称，带省/市后缀（如 上海市、江苏省），过滤用 LIKE '%上海%',
+   city string  // 城市全称，同样带后缀,
    district string,
    address string,
    open_date string,

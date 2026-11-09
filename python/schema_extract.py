@@ -117,7 +117,11 @@ TABLE_META = {
                      "brand": "品牌", "price": "吊牌价"}),
     "dim_store": ("门店维度表",
                   {"store_id": "门店编号", "store_name": "门店名称",
-                   "province": "省份", "city": "城市"}),
+                   # 省份必须写明带「省/市」后缀：只写「省份」时模型会生成
+                   # IN ('上海','江苏') 这种精确匹配，而实际值是「上海市」「江苏省」，
+                   # 条件永远不成立，聚合返回 NULL——又是一个不报错的静默错误。
+                   "province": "省份全称，带省/市后缀（如 上海市、江苏省），过滤用 LIKE '%上海%'",
+                   "city": "城市全称，同样带后缀"}),
     "dim_channel": ("渠道维度表",
                     {"channel_code": "渠道编码", "channel_name": "渠道名称"}),
 }
@@ -165,9 +169,29 @@ def extract():
     return schema
 
 
-def render_prompt_schema(schema):
+def fetch_data_range():
+    """取数仓实际覆盖的日期区间，写进 Prompt 顶部
+
+    为什么要多这一行：模型默认把「上周」「上个月」理解成相对于 current_date，
+    而数仓是 2024 年的历史快照，两者一撞就是聚合出 NULL——SQL 语法全对、
+    校验全过、执行不报错，结果却是一个空值。这类「静默的空」比报错更难发现，
+    所以把时间基准直接写进 Prompt，而不是指望模型自己意识到数据是死的。
+    """
+    rows = beeline("SELECT MIN(dt), MAX(dt) FROM ydsh_ads.ads_sales_daily_report")
+    if len(rows) < 2:
+        return None
+    lo, hi = (rows[1].split("\t") + ["", ""])[:2]
+    if not lo or lo in ("NULL", "_c0"):
+        return None
+    return f"数据覆盖区间：{lo} ~ {hi}（2024 年历史快照，非实时数据）"
+
+
+def render_prompt_schema(schema, data_range=None):
     """把 schema 渲染成给大模型看的紧凑文本"""
     out = []
+    if data_range:
+        out.append("-- " + data_range)
+        out.append("")
     for full, meta in schema.items():
         out.append(f"-- {full}（{meta['description']}）")
         cols = []
@@ -184,7 +208,9 @@ def render_prompt_schema(schema):
 if __name__ == "__main__":
     print("抽取 Hive 表结构：")
     s = extract()
-    txt = render_prompt_schema(s)
+    rng = fetch_data_range()
+    print(f"\n{ rng or '（未能取到日期区间）' }")
+    txt = render_prompt_schema(s, rng)
     with open(os.path.join(BASE, "data", "schema_prompt.txt"), "w", encoding="utf-8") as f:
         f.write(txt)
     print(f"\nPrompt 版 schema 已写入 data/schema_prompt.txt（{len(txt)} 字符）")

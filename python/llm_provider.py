@@ -58,8 +58,23 @@ PROVIDERS = {
         "default_model": "glm-4-flash",
         "console": "https://bigmodel.cn/usercenter/proj-mgmt/apikeys",
         "note": "glm-4-flash 免费；Key 形如 xxx.xxx 两段，别只复制前一段",
+        # 智谱 GLM-5.x 是「始终思考」模型，思考档位不在 OpenAI 协议里，只能走
+        # extra_body。注意字段是 thinking.level（low / high / max），不是 type——
+        # type 只接受 enabled/disabled，而这类模型不接受 disabled，传 type 会直接 400。
+        # 不指定档位时它在长 Prompt 上能想掉 7000 多字，把小 max_tokens 全部吃光、
+        # 正文返回空，表现成「模型没回答」。生成单条 SQL 用 low 足够。
+        "extra_body": {"thinking": {"level": "low"}},
     },
 }
+
+
+def extra_body_for(env, name, cfg):
+    """取该服务商的附加参数；支持用 <NAME>_THINKING 覆盖思考档位"""
+    extra = dict(cfg.get("extra_body") or {})
+    level = _get(env, f"{name.upper()}_THINKING")
+    if level and "thinking" in extra:
+        extra["thinking"] = {"level": level}
+    return extra or None
 
 
 @dataclass
@@ -69,6 +84,7 @@ class Provider:
     base_url: str
     model: str
     console: str
+    extra_body: dict = None       # 厂商私有参数，按 OpenAI 兼容协议塞进 extra_body
 
     @property
     def masked_key(self):
@@ -93,7 +109,8 @@ def resolve(env, forced=None):
         if key:
             model = env.get(f"{name.upper()}_MODEL") or _get(env, f"{name.upper()}_MODEL") or cfg["default_model"]
             return Provider(name=name, key=key, base_url=cfg["base_url"],
-                            model=model, console=cfg["console"])
+                            model=model, console=cfg["console"],
+                            extra_body=extra_body_for(env, name, cfg))
     return None
 
 

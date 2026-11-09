@@ -61,6 +61,15 @@ CASES = [
     ("边界：已带库名不应被重复补全",
      "```sql\nSELECT dt FROM ydsh_dws.dws_trade_day LIMIT 3\n```",
      True, "ydsh_dws.dws_trade_day"),
+    # 以下两条来自真实模型第一次生成 SQL 时的实际输出（见报告 5.5 节）：
+    # 模型用双引号包中文别名，而 Hive 把双引号当字符串字面量，别名位置直接语法错误。
+    # 校验器按 Hive 语义归一化，因此必须断言"改成了什么"，不能只断言"放行了"。
+    ("引号：双引号别名应改成反引号",
+     '```sql\nSELECT ROUND(SUM(gmv), 2) AS "华东GMV" FROM ydsh_ads.ads_monthly_trend\n```',
+     True, "AS `华东GMV`"),
+    ("引号：双引号字符串应改成单引号",
+     '```sql\nSELECT province FROM ydsh_dwd.dim_store WHERE province LIKE "%广东%"\n```',
+     True, "LIKE '%广东%'"),
 ]
 
 print("=" * 92)

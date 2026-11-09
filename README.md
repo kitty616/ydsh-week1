@@ -15,7 +15,7 @@
 
 > 第 2 周文档同时提供 Markdown 与 Word 两版：`数据质量清洗报告.md` ↔ `数据质量对比报告.docx`、`数仓架构设计.md` ↔ `数仓架构设计文档.docx`、`探索性分析简报.md` ↔ `探索性分析简报.docx`。内容一致，Word 版按提交清单要求命名。
 > 第 3 周起目录按层拆分：`sql/dws/`（多维汇总）、`sql/ads/`（应用指标）、`python/`（预测与 NL2SQL）。`data/daily_gmv.csv` 是预测脚本的唯一输入，已单独放行入库以保证可复现。
-> NL2SQL 提供两版实现：`nl2sql.py`（OpenAI SDK 直连，便于调试）与 `nl2sql_chain.py`（LangChain 编排，任务书指定技术栈）。两版共用同一套校验器与执行器，`--compare` 可做 A/B 对照。模型服务商由 `llm_provider.py` 统一解析，支持五家，填任意一家 Key 即可。
+> NL2SQL 提供两版实现：`nl2sql.py`（OpenAI SDK 直连，便于调试）与 `nl2sql_chain.py`（LangChain 编排，任务书指定技术栈）。两版共用同一套校验器与执行器，`--compare` 可做 A/B 对照。模型服务商由 `llm_provider.py` 统一解析，支持五家，填任意一家 Key 即可；已在智谱 `glm-5.3-flash` 上完成真实验证（6/6 生成并执行成功，跨层对账一致）。
 
 ---
 

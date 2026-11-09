@@ -1,67 +1,67 @@
 {
-  "same_sql": 6,
+  "same_sql": 1,
   "total": 6,
   "both_ok": 6,
   "detail": [
     {
       "question": "2024 年 6 月的总 GMV 是多少？",
-      "langchain_sql": "SELECT month, gmv, order_cnt, aov FROM ydsh_ads.ads_monthly_trend WHERE month = '2024-06'\nLIMIT 200",
+      "langchain_sql": "SELECT ROUND(gmv, 2) AS gmv_june\nFROM ydsh_ads.ads_monthly_trend\nWHERE month = '2024-06'\nLIMIT 200",
       "langchain_ok": true,
-      "langchain_mode": "规则模式（未配置 API Key）",
-      "manual_sql": "SELECT month, gmv, order_cnt, aov FROM ydsh_ads.ads_monthly_trend WHERE month = '2024-06'\nLIMIT 200",
+      "langchain_mode": "zhipu（结构化输出）",
+      "manual_sql": "SELECT ROUND(SUM(gmv), 2) AS gmv_june\nFROM ydsh_dws.dws_trade_month\nWHERE month = '2024-06'\nLIMIT 200",
       "manual_ok": true,
-      "manual_mode": "规则模式（未配置 API Key）",
-      "sql_identical": true
+      "manual_mode": "大模型",
+      "sql_identical": false
     },
     {
       "question": "销量最高的前 5 个品类",
-      "langchain_sql": "SELECT rank_no, category, gmv, gmv_share FROM ydsh_ads.ads_category_topn WHERE rank_no <= 5 ORDER BY rank_no\nLIMIT 200",
+      "langchain_sql": "SELECT category, item_qty AS sales_qty, gmv, gmv_share FROM ydsh_ads.ads_category_topn ORDER BY item_qty DESC LIMIT 5",
       "langchain_ok": true,
-      "langchain_mode": "规则模式（未配置 API Key）",
-      "manual_sql": "SELECT rank_no, category, gmv, gmv_share FROM ydsh_ads.ads_category_topn WHERE rank_no <= 5 ORDER BY rank_no\nLIMIT 200",
+      "langchain_mode": "zhipu（结构化输出）",
+      "manual_sql": "SELECT category, item_qty AS `销售件数`\nFROM ydsh_ads.ads_category_topn\nORDER BY item_qty DESC\nLIMIT 5",
       "manual_ok": true,
-      "manual_mode": "规则模式（未配置 API Key）",
-      "sql_identical": true
+      "manual_mode": "大模型",
+      "sql_identical": false
     },
     {
       "question": "用户价值分层结构是什么样的",
-      "langchain_sql": "SELECT user_segment, user_cnt, user_share, gmv, gmv_share FROM ydsh_ads.ads_user_segment ORDER BY gmv DESC\nLIMIT 200",
+      "langchain_sql": "SELECT user_segment, user_cnt, user_share, gmv, gmv_share, avg_gmv, avg_order_cnt FROM ydsh_ads.ads_user_segment ORDER BY gmv DESC\nLIMIT 200",
       "langchain_ok": true,
-      "langchain_mode": "规则模式（未配置 API Key）",
-      "manual_sql": "SELECT user_segment, user_cnt, user_share, gmv, gmv_share FROM ydsh_ads.ads_user_segment ORDER BY gmv DESC\nLIMIT 200",
+      "langchain_mode": "zhipu（结构化输出）",
+      "manual_sql": "SELECT user_segment, user_cnt, user_share, gmv, gmv_share, avg_gmv, avg_order_cnt\nFROM ydsh_ads.ads_user_segment\nORDER BY gmv DESC\nLIMIT 200",
       "manual_ok": true,
-      "manual_mode": "规则模式（未配置 API Key）",
+      "manual_mode": "大模型",
       "sql_identical": true
     },
     {
       "question": "列出所有核心 KPI 指标",
-      "langchain_sql": "SELECT metric_code, metric_name, metric_value, unit FROM ydsh_ads.ads_kpi_core ORDER BY metric_code\nLIMIT 200",
+      "langchain_sql": "SELECT metric_code, metric_name, metric_value, unit, calc_rule FROM ydsh_ads.ads_kpi_core ORDER BY metric_code\nLIMIT 200",
       "langchain_ok": true,
-      "langchain_mode": "规则模式（未配置 API Key）",
-      "manual_sql": "SELECT metric_code, metric_name, metric_value, unit FROM ydsh_ads.ads_kpi_core ORDER BY metric_code\nLIMIT 200",
+      "langchain_mode": "zhipu（结构化输出）",
+      "manual_sql": "SELECT metric_code, metric_name, metric_value, unit\nFROM ydsh_ads.ads_kpi_core\nORDER BY metric_code\nLIMIT 200",
       "manual_ok": true,
-      "manual_mode": "规则模式（未配置 API Key）",
-      "sql_identical": true
+      "manual_mode": "大模型",
+      "sql_identical": false
     },
     {
       "question": "2024 年每个月的 GMV 趋势",
-      "langchain_sql": "SELECT month, gmv, order_cnt, mom_rate FROM ydsh_ads.ads_monthly_trend ORDER BY month\nLIMIT 200",
+      "langchain_sql": "SELECT month, gmv, mom_rate FROM ydsh_ads.ads_monthly_trend ORDER BY month\nLIMIT 200",
       "langchain_ok": true,
-      "langchain_mode": "规则模式（未配置 API Key）",
-      "manual_sql": "SELECT month, gmv, order_cnt, mom_rate FROM ydsh_ads.ads_monthly_trend ORDER BY month\nLIMIT 200",
+      "langchain_mode": "zhipu（结构化输出）",
+      "manual_sql": "SELECT month, gmv\nFROM ydsh_ads.ads_monthly_trend\nORDER BY month_seq\nLIMIT 200",
       "manual_ok": true,
-      "manual_mode": "规则模式（未配置 API Key）",
-      "sql_identical": true
+      "manual_mode": "大模型",
+      "sql_identical": false
     },
     {
       "question": "广东省的销售额是多少",
-      "langchain_sql": "SELECT s.province, ROUND(SUM(o.pay_amount), 2) AS gmv, COUNT(DISTINCT o.order_id) AS order_cnt FROM ydsh_dwd.dwd_order o JOIN ydsh_dwd.dim_store s ON o.store_id = s.store_id WHERE s.province LIKE '广东%' GROUP BY s.province\nLIMIT 200",
+      "langchain_sql": "SELECT ROUND(SUM(s.gmv), 2) AS gmv_guangdong FROM ydsh_dws.dws_store_day s JOIN ydsh_dwd.dim_store d ON s.store_id = d.store_id WHERE d.province LIKE '%广东%' AND s.dt BETWEEN '2024-01-01' AND '2024-12-31'\nLIMIT 200",
       "langchain_ok": true,
-      "langchain_mode": "规则模式（未配置 API Key）",
-      "manual_sql": "SELECT s.province, ROUND(SUM(o.pay_amount), 2) AS gmv, COUNT(DISTINCT o.order_id) AS order_cnt FROM ydsh_dwd.dwd_order o JOIN ydsh_dwd.dim_store s ON o.store_id = s.store_id WHERE s.province LIKE '广东%' GROUP BY s.province\nLIMIT 200",
+      "langchain_mode": "zhipu（结构化输出）",
+      "manual_sql": "SELECT ROUND(SUM(s.gmv), 2) AS `广东省销售额`\nFROM ydsh_dws.dws_store_day s\nJOIN ydsh_dwd.dim_store d ON s.store_id = d.store_id\nWHERE d.province LIKE '%广东%'\nLIMIT 200",
       "manual_ok": true,
-      "manual_mode": "规则模式（未配置 API Key）",
-      "sql_identical": true
+      "manual_mode": "大模型",
+      "sql_identical": false
     }
   ]
 }
