@@ -94,26 +94,38 @@ def build_messages(question, schema_txt):
 # 3. 大模型调用
 # ----------------------------------------------------------------------
 def call_llm(messages, env):
-    """优先 DeepSeek，其次通义千问；都没有则返回 None（走规则模式）"""
+    """优先 DeepSeek，其次通义千问。
+
+    返回 (内容, 错误信息)：
+      - 未配置 Key            -> (None, None)
+      - 配置了 Key 但调用失败 -> (None, "异常摘要")
+      - 调用成功              -> (内容, None)
+
+    区分「没配 Key」和「配了但失败」很重要：前者是预期内的降级，
+    后者是故障，必须让上层把原因显示出来，不能悄悄当成规则模式。
+    """
     key = env.get("DEEPSEEK_API_KEY") or os.environ.get("DEEPSEEK_API_KEY")
     if key:
         base_url, model = "https://api.deepseek.com", env.get("DEEPSEEK_MODEL", "deepseek-chat")
     else:
         key = env.get("DASHSCOPE_API_KEY") or os.environ.get("DASHSCOPE_API_KEY")
         if not key:
-            return None
+            return None, None
         base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
         model = env.get("DASHSCOPE_MODEL", "qwen-plus")
 
-    from openai import OpenAI
-    client = OpenAI(api_key=key, base_url=base_url, timeout=60)
-    resp = client.chat.completions.create(
-        model=model,
-        messages=messages,
-        temperature=0,
-        max_tokens=800,
-    )
-    return resp.choices[0].message.content
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=key, base_url=base_url, timeout=60)
+        resp = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            temperature=0,
+            max_tokens=800,
+        )
+        return resp.choices[0].message.content, None
+    except Exception as e:  # 网络抖动、额度用尽、模型下线都可能，不能让它打断整条链路
+        return None, f"{type(e).__name__}: {str(e)[:120]}"
 
 
 # ----------------------------------------------------------------------
@@ -127,10 +139,43 @@ def extract_sql(text):
     return sql.strip().rstrip(";")
 
 
-def validate(sql, schema_tables):
-    """返回 (ok, sql, problems)"""
+def build_table_index(schema):
+    """构建「表名 → 带库全名」的映射。
+
+    同时收录裸表名，是为了接住模型漏写库名的情况。但裸表名必须映射到
+    **它真实的库**，不能统一补某个默认库——dws / dwd / ads 三层都有同名
+    习惯的表，补错库会生成一个不存在的表名，而校验却照样放行。
+    """
+    index = {}
+    for full in schema:
+        index[full] = full
+        _, _, tbl = full.partition(".")
+        if tbl and tbl not in index:
+            index[tbl] = full
+    return index
+
+
+def strip_comments(sql):
+    """去掉块注释与行注释。
+
+    必须在压平换行之前做：`-- 注释` 依赖换行终止，一旦把 \\n 换成空格，
+    注释就会吞掉它后面的整段 SQL（WHERE / LIMIT 一起失效），
+    查询不报错但返回全表——这类静默错误比报错更难发现。
+    """
+    sql = re.sub(r"/\*.*?\*/", " ", sql, flags=re.S)
+    sql = re.sub(r"--[^\n]*", "", sql)
+    return sql
+
+
+def validate(sql, schema):
+    """返回 (ok, sql, problems)
+
+    schema 传完整结构（全名 → 字段信息），内部自行构建表名索引；
+    不要传裸的 set，那样无法判断裸表名属于哪个库。
+    """
     problems = []
     s = sql.strip()
+    index = build_table_index(schema)
 
     if not s:
         return False, s, ["模型没有返回 SQL"]
@@ -147,17 +192,27 @@ def validate(sql, schema_tables):
 
     # 表名白名单：抓 FROM / JOIN 后面的标识符
     used = re.findall(r"\b(?:from|join)\s+([A-Za-z_][\w.]*)", s, re.I)
-    unknown = [t for t in used if t not in schema_tables]
+    unknown = [t for t in used if t not in index]
     if unknown:
         problems.append("引用了白名单外的表：" + ", ".join(unknown))
 
-    # 裸表名自动补库名（模型经常漏）
-    for t in used:
-        if "." not in t:
-            full = f"ydsh_ads.{t}"
-            s = re.sub(rf"\b{re.escape(t)}\b", full, s)
+    # 裸表名补全为真实库名；已带库名的不动
+    for t in dict.fromkeys(used):
+        if "." in t:
+            continue
+        full = index.get(t)
+        if not full:
+            continue  # 已记入 unknown，不再瞎补
+        # 负向后顾避免把 ydsh_dws.dws_trade_day 里的裸名部分再补一次
+        s = re.sub(rf"(?<![\w.]){re.escape(t)}\b", full, s)
 
-    if "limit" not in s.lower():
+    # 复核：改写本身可能制造新错误，改完必须再验一遍
+    used_after = re.findall(r"\b(?:from|join)\s+([A-Za-z_][\w.]*)", s, re.I)
+    broken = [t for t in used_after if t not in schema]
+    if broken:
+        problems.append("库名补全后仍不在白名单：" + ", ".join(broken))
+
+    if not re.search(r"\blimit\b", s, re.I):
         s = s.rstrip() + "\nLIMIT 200"
 
     return len(problems) == 0, s, problems
@@ -167,9 +222,10 @@ def validate(sql, schema_tables):
 # 5. 执行
 # ----------------------------------------------------------------------
 def run_sql(sql, limit_rows=50):
+    flat = strip_comments(sql).replace("\n", " ")
     cmd = ["docker", "exec", CONTAINER, "beeline",
            "-u", "jdbc:hive2://localhost:10000",
-           "--silent=true", "--outputformat=tsv2", "-e", sql.replace("\n", " ")]
+           "--silent=true", "--outputformat=tsv2", "-e", flat]
     r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
     out = [ln for ln in r.stdout.splitlines()
            if ln.strip() and not ln.startswith("SLF4J") and "beeline" not in ln.lower()]
@@ -229,17 +285,19 @@ def rule_based(question):
 # main
 # ----------------------------------------------------------------------
 def ask(question, schema, env, verbose=True):
-    tables = set(schema.keys()) | {k.split(".")[1] for k in schema}
     schema_txt = open(SCHEMA_TXT, encoding="utf-8").read()
 
     mode = "大模型"
-    raw = call_llm(build_messages(question, schema_txt), env)
+    raw, llm_err = call_llm(build_messages(question, schema_txt), env)
     if raw is None:
-        mode = "规则模式（未配置 API Key）"
+        if llm_err:
+            mode = f"规则模式（模型调用失败，已降级：{llm_err}）"
+        else:
+            mode = "规则模式（未配置 API Key）"
         raw = rule_based(question)
 
     sql = extract_sql(raw)
-    ok, sql, problems = validate(sql, tables)
+    ok, sql, problems = validate(sql, schema)
 
     if verbose:
         print(f"\n问题：{question}")
@@ -252,14 +310,14 @@ def ask(question, schema, env, verbose=True):
 
     if not ok:
         return {"question": question, "mode": mode, "sql": sql, "ok": False,
-                "problems": problems, "rows": []}
+                "problems": problems, "rows": [], "llm_error": llm_err}
 
     rows, err = run_sql(sql)
     if err:
         if verbose:
             print("执行失败：" + " | ".join(err))
         return {"question": question, "mode": mode, "sql": sql, "ok": False,
-                "problems": err, "rows": []}
+                "problems": err, "rows": [], "llm_error": llm_err}
 
     if verbose and rows:
         head = rows[0].split("\t")
@@ -271,7 +329,7 @@ def ask(question, schema, env, verbose=True):
             print(f"      ... 共 {len(body)} 行")
 
     return {"question": question, "mode": mode, "sql": sql, "ok": True,
-            "problems": [], "rows": rows[:20]}
+            "problems": [], "rows": rows[:20], "llm_error": llm_err}
 
 
 TEST_QUESTIONS = [

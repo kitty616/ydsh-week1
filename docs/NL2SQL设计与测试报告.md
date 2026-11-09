@@ -20,7 +20,8 @@ Schema 注入（14 张表、字段 + 中文语义，3,671 字符）
     ├─ 只允许单条 SELECT / WITH
     ├─ 拦截 DDL / DML 关键字
     ├─ 表名白名单（14 张）
-    ├─ 自动补库名前缀
+    ├─ 自动补库名（按真实所属库）
+    ├─ 改写后二次复核
     └─ 自动加 LIMIT
     ↓
 beeline 执行（Docker 内 Hive 4.0.0）
@@ -138,40 +139,76 @@ DANGEROUS = re.compile(r"\b(insert|update|delete|drop|alter|create|truncate|load
 | 写操作拦截 | 正则匹配 12 个危险关键字 |
 | 语句类型 | 必须以 `SELECT` / `WITH` 开头 |
 | 多语句 | `;` 数量 > 1 即拒绝 |
-| 表名白名单 | 抓 `FROM` / `JOIN` 后的标识符，比对 14 张表白名单 |
-| 自动补库名 | 裸表名自动补 `ydsh_ads.` 前缀 |
+| 表名白名单 | 抓 `FROM` / `JOIN` 后的标识符，比对 14 张表 |
+| 自动补库名 | 裸表名按**真实所属库**补全（`dws_*`→`ydsh_dws`、`dwd_*`/`dim_*`→`ydsh_dwd`、`ads_*`→`ydsh_ads`） |
+| 改写后复核 | 补全后重新抓表名再验一遍白名单，防止改写本身制造新错误 |
+| 注释剥离 | 执行前去掉 `--` 与 `/* */`，避免压平换行时注释吞掉后续 SQL |
 | 自动加 LIMIT | 无 `LIMIT` 时追加 `LIMIT 200` |
 
 ### 4.3 对抗测试结果
 
-`python/test_guard.py`，11 条用例 **全部通过（11/11）**：
+`python/test_guard.py`，15 条用例 **全部通过（15/15）**。相比初版增加了 4 条跨层裸表名用例，并把「改写结果」纳入断言。
 
-| 用例 | 期望 | 实际 | 判定 |
-|---|---|---|---|
-| 正常查询（带库名） | 通过 | 通过 | PASS |
-| 正常查询（裸表名，自动补全） | 通过 | 通过 | PASS |
-| 正常查询（聚合 + JOIN） | 通过 | 通过 | PASS |
-| 危险：DELETE | 拒绝 | 拒绝 | PASS |
-| 危险：DROP TABLE | 拒绝 | 拒绝 | PASS |
-| 危险：UPDATE | 拒绝 | 拒绝 | PASS |
-| 危险：多语句注入 | 拒绝 | 拒绝 | PASS |
-| 错误：编造的库表 | 拒绝 | 拒绝 | PASS |
-| 错误：非 SELECT 开头 | 拒绝 | 拒绝 | PASS |
-| 错误：空输出 | 拒绝 | 拒绝 | PASS |
-| 边界：子查询里的裸表名 | 通过 | 通过 | PASS |
+| 用例 | 期望 | 实际 | 改写校验 | 判定 |
+|---|---|---|---|---|
+| 正常查询（带库名） | 通过 | 通过 | OK | PASS |
+| 正常查询（裸表名，ads 层） | 通过 | 通过 | OK | PASS |
+| 裸表名应补到 dws 层而非 ads | 通过 | 通过 | OK | PASS |
+| 裸表名应补到 dwd 层而非 ads | 通过 | 通过 | OK | PASS |
+| 裸维表应补到 dwd 层 | 通过 | 通过 | OK | PASS |
+| 正常查询（聚合 + JOIN） | 通过 | 通过 | OK | PASS |
+| 危险：DELETE | 拒绝 | 拒绝 | — | PASS |
+| 危险：DROP TABLE | 拒绝 | 拒绝 | — | PASS |
+| 危险：UPDATE | 拒绝 | 拒绝 | — | PASS |
+| 危险：多语句注入 | 拒绝 | 拒绝 | — | PASS |
+| 错误：编造的库表 | 拒绝 | 拒绝 | — | PASS |
+| 错误：非 SELECT 开头 | 拒绝 | 拒绝 | — | PASS |
+| 错误：空输出 | 拒绝 | 拒绝 | — | PASS |
+| 边界：子查询里的裸表名 | 通过 | 通过 | OK | PASS |
+| 边界：已带库名不应被重复补全 | 通过 | 通过 | OK | PASS |
 
 拦截原因实际输出（节选）：
 
 ```
 · 危险：DELETE：包含写操作关键字，已拦截；不是 SELECT / WITH 开头
 · 危险：多语句注入：包含写操作关键字，已拦截
-· 错误：编造的库表：引用了白名单外的表：ydsh_ods.ods_sales_fact
+· 错误：编造的库表：引用了白名单外的表：ydsh_ods.ods_sales_fact；库名补全后仍不在白名单：ydsh_ods.ods_sales_fact
 · 错误：空输出：模型没有返回 SQL
 ```
 
-裸表名补全实测：`SELECT month, gmv FROM ads_monthly_trend` → `SELECT month, gmv FROM ydsh_ads.ads_monthly_trend LIMIT 200`。
+裸表名补全实测（按真实库名，而非统一补 ads）：
 
-### 4.4 校验器拦不住什么
+```
+dws_trade_day   →  ydsh_dws.dws_trade_day
+dwd_order       →  ydsh_dwd.dwd_order
+dim_store       →  ydsh_dwd.dim_store
+ads_monthly_trend →  ydsh_ads.ads_monthly_trend
+```
+
+### 4.4 Code Review 发现的问题与修复
+
+PR #2 提交后做了一轮自查式 Review，发现校验器本身 4 个缺陷。全部实测复现后修复，过程记录在 PR 的 5 条行内评论里。
+
+| 级别 | 问题 | 后果 | 修复 |
+|---|---|---|---|
+| Blocker | 裸表名一律补 `ydsh_ads.` | `dws_trade_day`→`ydsh_ads.dws_trade_day`，表不存在却返回 `ok=True`，放行了必然失败的 SQL | 白名单改为 `表名→全名` 映射，按真实库补全；补全后二次复核 |
+| Major | 测试只断言 `ok` 布尔值 | 上述 Blocker 显示 PASS 被漏掉——用例里恰好用了 `dws_trade_day`，但没人检查它被改写成什么 | 用例增加期望 SQL 字段，判定同时校验 `expect_sql in fixed` |
+| Major | 执行前把 `\n` 换成空格 | `-- 注释` 后的 `WHERE` / `LIMIT` 被整体注释掉，**查询不报错但返回全表** | 新增 `strip_comments()`，先剥注释再压平 |
+| Minor | `call_llm` 无异常兜底 | 有 Key 时网络抖动直接抛栈，不回落规则模式 | `try/except` 返回 `(None, 错误摘要)`；模式标注「模型调用失败，已降级」 |
+
+Blocker 的实测证据（修复前）：
+
+```
+输入: SELECT * FROM dwd_order
+输出: SELECT * FROM ydsh_ads.dwd_order    ← 库名错
+ok = True                                  ← 校验放行
+```
+
+修复后同一输入得到 `ydsh_dwd.dwd_order`，并新增 4 条用例锁住这个行为。
+
+这个教训比代码本身更重要：**校验器的价值在于「拦住错误」，一旦它自己动手改写却不受检验，它的「通过」反而是风险来源。**
+
+### 4.5 校验器拦不住什么
 
 必须说清楚边界，否则会有虚假安全感：
 
@@ -207,7 +244,7 @@ DANGEROUS = re.compile(r"\b(insert|update|delete|drop|alter|create|truncate|load
 这意味着：
 
 - ✅ **链路是通的**：Schema → 生成 → 校验 → 执行 → 结果，每一环都真实跑过。
-- ✅ **校验器是真实的**：11 条对抗测试全部真实执行。
+- ✅ **校验器是真实的**：15 条对抗测试全部真实执行，且断言改写结果而不只是布尔值。
 - ❌ **模型能力未被验证**：规则模式只能证明"如果有一条正确的 SQL，这个链路能跑通"，不能证明"模型能生成正确的 SQL"。
 
 这个区别必须写清楚。把规则模式的结果当成模型效果汇报，是自欺。
