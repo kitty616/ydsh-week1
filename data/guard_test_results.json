@@ -1,0 +1,100 @@
+{
+  "passed": 11,
+  "total": 11,
+  "detail": [
+    {
+      "case": "正常查询（带库名）",
+      "expect": true,
+      "actual": true,
+      "problems": [],
+      "sql_after": "SELECT category, gmv FROM ydsh_ads.ads_category_topn WHERE rank_no <= 5\nLIMIT 200"
+    },
+    {
+      "case": "正常查询（裸表名，应自动补库名）",
+      "expect": true,
+      "actual": true,
+      "problems": [],
+      "sql_after": "SELECT month, gmv FROM ydsh_ads.ads_monthly_trend\nLIMIT 200"
+    },
+    {
+      "case": "正常查询（聚合 + JOIN）",
+      "expect": true,
+      "actual": true,
+      "problems": [],
+      "sql_after": "SELECT s.province, SUM(o.pay_amount) gmv FROM ydsh_dwd.dwd_order o JOIN ydsh_dwd.dim_store s ON o.store_id = s.store_id GROUP BY s.province\nLIMIT 200"
+    },
+    {
+      "case": "危险：DELETE",
+      "expect": false,
+      "actual": false,
+      "problems": [
+        "包含写操作关键字，已拦截",
+        "不是 SELECT / WITH 开头"
+      ],
+      "sql_after": "DELETE FROM ydsh_dwd.dwd_order WHERE order_date='2024-01-01'\nLIMIT 200"
+    },
+    {
+      "case": "危险：DROP TABLE",
+      "expect": false,
+      "actual": false,
+      "problems": [
+        "包含写操作关键字，已拦截",
+        "不是 SELECT / WITH 开头"
+      ],
+      "sql_after": "DROP TABLE ydsh_dwd.dwd_order\nLIMIT 200"
+    },
+    {
+      "case": "危险：UPDATE",
+      "expect": false,
+      "actual": false,
+      "problems": [
+        "包含写操作关键字，已拦截",
+        "不是 SELECT / WITH 开头"
+      ],
+      "sql_after": "UPDATE ydsh_ads.ads_kpi_core SET metric_value = 0\nLIMIT 200"
+    },
+    {
+      "case": "危险：多语句注入",
+      "expect": false,
+      "actual": false,
+      "problems": [
+        "包含写操作关键字，已拦截"
+      ],
+      "sql_after": "SELECT 1;\nDROP TABLE ydsh_dwd.dwd_order\nLIMIT 200"
+    },
+    {
+      "case": "错误：编造的库表",
+      "expect": false,
+      "actual": false,
+      "problems": [
+        "引用了白名单外的表：ydsh_ods.ods_sales_fact"
+      ],
+      "sql_after": "SELECT * FROM ydsh_ods.ods_sales_fact\nLIMIT 200"
+    },
+    {
+      "case": "错误：非 SELECT 开头",
+      "expect": false,
+      "actual": false,
+      "problems": [
+        "不是 SELECT / WITH 开头"
+      ],
+      "sql_after": "SHOW TABLES IN ydsh_dwd\nLIMIT 200"
+    },
+    {
+      "case": "错误：空输出",
+      "expect": false,
+      "actual": false,
+      "problems": [
+        "模型没有返回 SQL"
+      ],
+      "sql_after": ""
+    },
+    {
+      "case": "边界：子查询里的裸表名",
+      "expect": true,
+      "actual": true,
+      "problems": [],
+      "sql_after": "SELECT * FROM (SELECT dt, gmv FROM ydsh_ads.dws_trade_day) t LIMIT 5"
+    }
+  ]
+}
