@@ -58,12 +58,14 @@ PROVIDERS = {
         "default_model": "glm-4-flash",
         "console": "https://bigmodel.cn/usercenter/proj-mgmt/apikeys",
         "note": "glm-4-flash 免费；Key 形如 xxx.xxx 两段，别只复制前一段",
-        # 智谱 GLM-5.x 是「始终思考」模型，思考档位不在 OpenAI 协议里，只能走
-        # extra_body。注意字段是 thinking.level（low / high / max），不是 type——
-        # type 只接受 enabled/disabled，而这类模型不接受 disabled，传 type 会直接 400。
-        # 不指定档位时它在长 Prompt 上能想掉 7000 多字，把小 max_tokens 全部吃光、
-        # 正文返回空，表现成「模型没回答」。生成单条 SQL 用 low 足够。
-        "extra_body": {"thinking": {"level": "low"}},
+        # 这里刻意不传 thinking 参数。glm-5.x 是「始终思考」模型，实测结论：
+        #   不传参数         → 思考 1,434 字，正文正常输出
+        #   thinking.level=low → 思考 2,798 字，正文为空（finish=length）
+        #   thinking.type=disabled → 400「该模型始终思考，不支持关闭思考」
+        # 也就是说 level=low 并不「少想」，反而想得更多；而服务端默认档位是
+        # 恰当的。曾在这里配过 level=low，导致正文被思考段吃光、表现为
+        # 「模型没回答」——这个坑不要再踩。思考长度还会随 max_tokens 上涨，
+        # 给多少预算就能想掉多少，所以调预算解决不了问题。
     },
 }
 
