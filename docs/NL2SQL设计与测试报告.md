@@ -302,7 +302,7 @@ python python/nl2sql_chain.py --compare   # LangChain 版 + A/B 对照
 |---|---|---|---|
 | 1 | `ParseException: cannot recognize input near 'AS' '"华东区上周GMV"'` | 模型用双引号包别名，Hive 把双引号当字符串字面量，不能当标识符 | Prompt 规则 6 + 校验器引号归一化 |
 | 2 | `content` 空、`finish_reason=length`，被当成"模型没回答"而降级 | GLM-5.x 始终思考，思考内容也计入 `max_tokens`，实测吃掉 7,062 字 | `max_tokens` 800→4096，空正文单独报错 |
-| 3 | `400 该模型始终思考，不支持关闭思考` | 思考档位字段是 `thinking.level`，不是 `thinking.type` | `extra_body` 传 `{"thinking":{"level":"low"}}` |
+| 3 | `400 该模型始终思考，不支持关闭思考` | 思考档位字段是 `thinking.level`，不是 `thinking.type` | 探明形状后**最终选择不传参数**，用服务端默认档位（见下） |
 | 4 | SQL 语法全对、校验全过，结果 `NULL` | 模型把「上周」按 `current_date` 算，而数仓是 2024 年快照 | 把数据区间注入 Schema Prompt + 规则 9 |
 | 5 | 同上，结果 `NULL` | `province` 实际值是「上海市」「江苏省」，模型写 `IN ('上海','江苏')` 精确匹配 | 字段注释写明带后缀、用 `LIKE` |
 | 6 | `SemanticException 10025: Expression not in GROUP BY key 'week_start'` | 模型多加了日期辅助列，又没写进 GROUP BY，Hive 不做隐式推断 | Prompt 规则 10 |
@@ -322,6 +322,9 @@ python python/nl2sql_chain.py --compare   # LangChain 版 + A/B 对照
 | `thinking.level = low` | ✅ 思考 347 字 |
 | `thinking = "low"` | ❌ JSON 反序列化失败 |
 | `reasoning_effort = low` | ✅ 思考 238 字（另一条路径） |
+
+> **后续修正（第 3 周末）**：上表是在「生成一条 SQL」这种短任务上测的，`level=low` 确实更短。但做 `ai_insight.py` 的摘要生成时发现规律反了——思考长度会撑满 `max_tokens` 上限，`level=low` 在同等预算下反而比不传参数想得更多（`max_tokens=1024` 时：不传 → 1,434 字且正文正常，`level=low` → 2,798 字且正文为空）。
+> 所以 `llm_provider.py` 里给智谱配的 `extra_body` 已删除，统一用服务端默认档位。**参数的最优取法依赖任务形状，不能从短任务外推到长任务**——完整实测见《AI洞察报告》4.3 节。
 
 **4 & 5. 两个 NULL——不报错的错，最难发现。** 第 4 条让模型用 `current_date` 去查 2024 年的数据，条件永远不成立；第 5 条让模型按 `IN ('上海')` 去匹配「上海市」。两条都通过了全部静态校验、执行也不报错，只有一个 NULL。这类问题的共同点是**错误信息为零**。修法是把数据的物理事实写进 Prompt：顶部注入「数据覆盖 2024-01-01 ~ 2024-12-31（历史快照）」，字段注释写明「省份全称，带省/市后缀」。
 
