@@ -221,9 +221,9 @@ nl2sql.py --batch    6/6 链路执行成功，无回归
 | 校验 fork 关系 | `GET /repos/kitty616/ydsh-week1-upstream` | `fork: true`、`parent` 指向上游、`source` 同上 |
 | 校验计数 | `GET /repos/ydsh-lab/ydsh-week1-upstream` | **`forks_count` 0 → 1**、`network_count` 0 → 1 |
 | 建开发分支 | 本地 `feature/fork-collab` | 与 `main` 隔离 |
-| 向上游提 PR | fork 分支 → `ydsh-lab:main` | 见 6.3 |
-| Code Review | 行内意见 + 修改 | 见 6.3 |
-| 合并 | Merge 到上游 `main` | 见 6.3 |
+| 向上游提 PR | fork 分支 → `ydsh-lab:main` | [PR #1](https://github.com/ydsh-lab/ydsh-week1-upstream/pull/1)，见 6.4 |
+| Code Review | 行内意见 + 修改 | [3 条行内意见](https://github.com/ydsh-lab/ydsh-week1-upstream/pull/1#pullrequestreview-5834676514)，见 6.4 |
+| 合并 | Merge 到上游 `main` | 见 6.4 |
 
 一个细节：首次 `git push` 报 `HTTP 408 RPC failed`。原因不是权限，是 294 个松散对象逐个协商、而当时链路只有约 0.4 MB/s；`git gc` 打成单个 3.26 MiB packfile 后一次成功。**大仓库推不动先看打包粒度，不要先怀疑权限。**
 
@@ -237,6 +237,25 @@ nl2sql.py --batch    6/6 链路执行成功，无回归
 | 组织的仓库（`ydsh-lab/...`） | 202 | **0 → 1** | 真实生效 |
 
 两次都是 202。**只看状态码，两次会得出同样的错误结论。** 差别必须回到业务字段（`forks_count`、`fork`、`parent`）上验。这和第 3 周 Code Review 里发现的"测试断言只看布尔值"是同一类错误：验证的对象选错了，验证就失去了意义。
+
+### 6.4 本轮 PR 记录
+
+| 项 | 内容 |
+|---|---|
+| PR | [#1 docs: 补记真实 Fork 全流程与域名级网络边界](https://github.com/ydsh-lab/ydsh-week1-upstream/pull/1) |
+| 来源 → 目标 | `kitty616:feature/fork-collab` → `ydsh-lab:main` |
+| 变更规模 | 2 个文件，+77 −6 |
+| Review | [3 条行内意见](https://github.com/ydsh-lab/ydsh-week1-upstream/pull/1#pullrequestreview-5834676514)，review id `5834676514` |
+| 意见 1 | 6.2 表格三行「见 6.3」是悬空引用，6.3 讲的是方法论 → 改为指向本节 |
+| 意见 2 | 第八章「见第 6.3 节」是全文唯一软引用 → 改为硬链接 |
+| 意见 3 | 「45 个提交」缺统计口径 → 补 `git rev-list --count HEAD`（含 merge） |
+| 修复 | 本次提交 |
+| 合并 | Merge 到上游 `main`，合并状态与合并提交见 PR 页面 |
+
+**这次能抓出三条，不是因为"又读了一遍"。** 通读时那三处引用看起来都通顺——"见 6.3"读起来就是在指向下一节，语感上毫无破绽。真正发现问题的是逐个交叉引用去本地 `grep`：搜到 4 处「见 6.3」，再去对 6.3 的实际标题，才发现标题讲的是验证方法、不是 PR 记录。
+
+这和 6.3 里 202 vs 200 是同一个方法：**不相信叙述的合理性，只相信可查的证据。** 一个人 review 自己的代码时尤其需要这样，因为"读起来对"和"实际对"之间的差距，恰恰是自己最难察觉的部分。
+
 
 
 ---
@@ -272,7 +291,7 @@ git checkout week3-done    # 第 3 周交付状态
 | 冲突解决提交 | `4659a62`（本仓库历史可查） |
 | 缺陷修复提交 | `a0c73d8` |
 | 合并提交 | `9f2b2a2` |
-| Fork 流程 PR | 见第 6.3 节 |
+| Fork 流程 PR | https://github.com/ydsh-lab/ydsh-week1-upstream/pull/1 |
 
 ---
 
