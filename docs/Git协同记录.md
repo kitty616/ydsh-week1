@@ -188,13 +188,17 @@ nl2sql.py --batch    6/6 链路执行成功，无回归
 
 ---
 
-## 六、关于 Fork 工作流的说明
+## 六、Fork 工作流：先走等价流程，后补真 Fork
 
 子任务要求"从主仓库 Fork，克隆到本地，开发后提交 PR"。
 
-**实际情况**：本项目为个人独立完成，`kitty616/ydsh-week1` 既是上游也是工作仓库，GitHub 不支持 Fork 自己的仓库到同一账号。因此采用**功能分支 + PR 的等价流程**：
+### 6.1 为什么一开始走的是等价流程
 
-| Fork 工作流标准步骤 | 本项目实际做法 | 是否等价 |
+本项目为个人独立完成，`kitty616/ydsh-week1` 既是上游也是工作仓库。**GitHub 不允许把仓库 fork 给自己**——实测 `POST /repos/kitty616/ydsh-week1/forks` 返回 `202 Accepted`，但随后 `forks_count` 一直是 0、账号仓库数也没变，是一次静默 no-op。
+
+所以第 3 周主流程采用了**功能分支 + PR**：
+
+| Fork 工作流标准步骤 | 当时的做法 | 是否等价 |
 |---|---|---|
 | Fork 主仓库到个人账号 | 在主干上创建 `feature/week3-dws-ads` 分支 | 等价：都建立了与主干隔离的开发线 |
 | 克隆 Fork 到本地 | 本地已有仓库，切换分支 | 等价 |
@@ -205,7 +209,54 @@ nl2sql.py --batch    6/6 链路执行成功，无回归
 
 差别只在"隔离靠账号还是靠分支"。PR、Review、Issue、冲突解决这些真正考察协作能力的环节，全部真实执行且有链接可查。
 
-**如果后续需要多人协作**，标准流程是：协作者 Fork 仓库 → 在自己的 Fork 上建分支 → 向上游提 PR → 项目维护者 Review 后合并。本项目的分支策略与之只差一层仓库复制，其余完全对应。
+### 6.2 补做：真实的 Fork 全流程
+
+要 fork 就必须有一个"属于别人"的上游。11-10 在新建的免费组织 `ydsh-lab` 下建了上游仓库，之后**全程走 REST API**（当时 `github.com` 网页与 git 协议被阻断，只有 `api.github.com` 可用）：
+
+| 步骤 | 具体动作 | 结果 |
+|---|---|---|
+| 建上游仓库 | `POST /orgs/ydsh-lab/repos` | `ydsh-lab/ydsh-week1-upstream`（public） |
+| 推送完整历史 | `git push` 45 个提交 | 上游 HEAD `35e40a0` |
+| Fork 到个人账号 | `POST /repos/ydsh-lab/ydsh-week1-upstream/forks` | `kitty616/ydsh-week1-upstream` |
+| 校验 fork 关系 | `GET /repos/kitty616/ydsh-week1-upstream` | `fork: true`、`parent` 指向上游、`source` 同上 |
+| 校验计数 | `GET /repos/ydsh-lab/ydsh-week1-upstream` | **`forks_count` 0 → 1**、`network_count` 0 → 1 |
+| 建开发分支 | 本地 `feature/fork-collab` | 与 `main` 隔离 |
+| 向上游提 PR | fork 分支 → `ydsh-lab:main` | [PR #1](https://github.com/ydsh-lab/ydsh-week1-upstream/pull/1)，见 6.4 |
+| Code Review | 行内意见 + 修改 | [3 条行内意见](https://github.com/ydsh-lab/ydsh-week1-upstream/pull/1#pullrequestreview-5834676514)，见 6.4 |
+| 合并 | Merge 到上游 `main` | 见 6.4 |
+
+一个细节：首次 `git push` 报 `HTTP 408 RPC failed`。原因不是权限，是 294 个松散对象逐个协商、而当时链路只有约 0.4 MB/s；`git gc` 打成单个 3.26 MiB packfile 后一次成功。**大仓库推不动先看打包粒度，不要先怀疑权限。**
+
+### 6.3 这次补做暴露的验证方法
+
+同一个 fork 端点，两次调用结果不同：
+
+| 上游仓库所有权 | HTTP 返回 | `forks_count` | 结论 |
+|---|---|---|---|
+| 自己的仓库（`kitty616/ydsh-week1`） | 202 | 0（不变） | 静默 no-op，业务未发生 |
+| 组织的仓库（`ydsh-lab/...`） | 202 | **0 → 1** | 真实生效 |
+
+两次都是 202。**只看状态码，两次会得出同样的错误结论。** 差别必须回到业务字段（`forks_count`、`fork`、`parent`）上验。这和第 3 周 Code Review 里发现的"测试断言只看布尔值"是同一类错误：验证的对象选错了，验证就失去了意义。
+
+### 6.4 本轮 PR 记录
+
+| 项 | 内容 |
+|---|---|
+| PR | [#1 docs: 补记真实 Fork 全流程与域名级网络边界](https://github.com/ydsh-lab/ydsh-week1-upstream/pull/1) |
+| 来源 → 目标 | `kitty616:feature/fork-collab` → `ydsh-lab:main` |
+| 变更规模 | 2 个文件，+77 −6 |
+| Review | [3 条行内意见](https://github.com/ydsh-lab/ydsh-week1-upstream/pull/1#pullrequestreview-5834676514)，review id `5834676514` |
+| 意见 1 | 6.2 表格三行「见 6.3」是悬空引用，6.3 讲的是方法论 → 改为指向本节 |
+| 意见 2 | 第八章「见第 6.3 节」是全文唯一软引用 → 改为硬链接 |
+| 意见 3 | 「45 个提交」缺统计口径 → 补 `git rev-list --count HEAD`（含 merge） |
+| 修复 | 本次提交 |
+| 合并 | Merge 到上游 `main`，合并状态与合并提交见 PR 页面 |
+
+**这次能抓出三条，不是因为"又读了一遍"。** 通读时那三处引用看起来都通顺——"见 6.3"读起来就是在指向下一节，语感上毫无破绽。真正发现问题的是逐个交叉引用去本地 `grep`：搜到 4 处「见 6.3」，再去对 6.3 的实际标题，才发现标题讲的是验证方法、不是 PR 记录。
+
+这和 6.3 里 202 vs 200 是同一个方法：**不相信叙述的合理性，只相信可查的证据。** 一个人 review 自己的代码时尤其需要这样，因为"读起来对"和"实际对"之间的差距，恰恰是自己最难察觉的部分。
+
+
 
 ---
 
@@ -215,6 +266,8 @@ nl2sql.py --batch    6/6 链路执行成功，无回归
 |---|---|---|
 | `week2-done` | 第 2 周收尾提交 | 第 2 周交付完成 |
 | `week3-done` | 第 3 周合并后提交 `9f2b2a2` | 第 3 周交付完成 |
+| `week3-final` | 第 3 周接口真实调用验证后 | 第 3 周最终交付 |
+| `fork-collab-done` | Fork 流程补做后的合并提交 | Fork 工作流完整体验 |
 
 标签用于标记周次交付节点，方便答辩时直接检出某周状态：
 
@@ -229,6 +282,8 @@ git checkout week3-done    # 第 3 周交付状态
 
 | 内容 | 链接 |
 |---|---|
+| 上游仓库（组织） | https://github.com/ydsh-lab/ydsh-week1-upstream |
+| 我的 Fork | https://github.com/kitty616/ydsh-week1-upstream |
 | Issue #1 | https://github.com/kitty616/ydsh-week1/issues/1 |
 | PR #2 | https://github.com/kitty616/ydsh-week1/pull/2 |
 | Code Review | https://github.com/kitty616/ydsh-week1/pull/2#pullrequestreview-5820633472 |
@@ -236,6 +291,7 @@ git checkout week3-done    # 第 3 周交付状态
 | 冲突解决提交 | `4659a62`（本仓库历史可查） |
 | 缺陷修复提交 | `a0c73d8` |
 | 合并提交 | `9f2b2a2` |
+| Fork 流程 PR | https://github.com/ydsh-lab/ydsh-week1-upstream/pull/1 |
 
 ---
 
@@ -245,7 +301,7 @@ git checkout week3-done    # 第 3 周交付状态
 如果只是通读 `nl2sql.py`，`full = f"ydsh_ads.{t}"` 这行看起来毫无问题——它在给裸表名补库名，逻辑通顺、注释清楚。只有真的把 `dwd_order` 丢进去看输出，才会发现补错了库。读代码能发现风格问题，跑代码才能发现逻辑问题。
 
 **2. 测试通过不等于被测行为正确。**
-11 条用例全绿，其中一条恰好覆盖了这个场景，仍没测出来。原因是断言只到"放没放行"，没到"改成了什么"。**断言写得多浅，测试的保障就有多浅。** 现在的 15 条用例里，凡是涉及改写的都校验结果字符串，改回旧逻辑会立刻 FAIL。
+11 条用例全绿，其中一条恰好覆盖了这个场景，仍没测出来。原因是断言只到"放没放行"，没到"改成了什么"。**断言写得多浅，测试的保障就有多浅。** 现在的 17 条用例里，凡是涉及改写的都校验结果字符串，改回旧逻辑会立刻 FAIL。
 
 **3. 冲突解决要基于"信息完整性"判断，不是"归属"。**
 README 那处冲突，如果按"我是这个分支的作者所以用我的版本"，会保留 `sql/dws/` 这种模糊写法；如果按"main 是主干所以以它为准"，会丢掉两份交付文档。逐列比较、各取所长，才是真正解决了问题而不是完成了解冲突这个动作。
