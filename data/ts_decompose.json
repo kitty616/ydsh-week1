@@ -1,0 +1,156 @@
+{
+  "generated_by": "python/ts_decompose.py",
+  "data_range": {
+    "start": "2024-01-01",
+    "end": "2024-12-31",
+    "days": 366
+  },
+  "moving_average": {
+    "ma7": {
+      "std": 5833.73,
+      "mean": 98649.74,
+      "cv": 0.0591
+    },
+    "ma14": {
+      "std": 4019.53,
+      "mean": 98652.08,
+      "cv": 0.0407
+    },
+    "ma30": {
+      "std": 2898.82,
+      "mean": 98532.21,
+      "cv": 0.0294
+    },
+    "raw": {
+      "std": 18466.81,
+      "mean": 98679.47,
+      "cv": 0.1871
+    }
+  },
+  "decompose": {
+    "method": "STL(period=7, robust=True)",
+    "seasonal_strength": 0.2183,
+    "trend_strength": 0.0859,
+    "resid_std": 15782.69,
+    "resid_share_of_mean": 15.99
+  },
+  "monthly": [
+    {
+      "month": "2024-01",
+      "gmv": 3158704.7,
+      "order_cnt": 1228,
+      "days": 31,
+      "aov": 2572.24,
+      "mom_pct": null
+    },
+    {
+      "month": "2024-02",
+      "gmv": 2915145.59,
+      "order_cnt": 1143,
+      "days": 29,
+      "aov": 2550.43,
+      "mom_pct": -7.71
+    },
+    {
+      "month": "2024-03",
+      "gmv": 3087726.84,
+      "order_cnt": 1236,
+      "days": 31,
+      "aov": 2498.16,
+      "mom_pct": 5.92
+    },
+    {
+      "month": "2024-04",
+      "gmv": 3025844.79,
+      "order_cnt": 1174,
+      "days": 30,
+      "aov": 2577.38,
+      "mom_pct": -2.0
+    },
+    {
+      "month": "2024-05",
+      "gmv": 3080528.74,
+      "order_cnt": 1249,
+      "days": 31,
+      "aov": 2466.4,
+      "mom_pct": 1.81
+    },
+    {
+      "month": "2024-06",
+      "gmv": 2829996.31,
+      "order_cnt": 1110,
+      "days": 30,
+      "aov": 2549.55,
+      "mom_pct": -8.13
+    },
+    {
+      "month": "2024-07",
+      "gmv": 2979236.8,
+      "order_cnt": 1200,
+      "days": 31,
+      "aov": 2482.7,
+      "mom_pct": 5.27
+    },
+    {
+      "month": "2024-08",
+      "gmv": 3039882.76,
+      "order_cnt": 1223,
+      "days": 31,
+      "aov": 2485.6,
+      "mom_pct": 2.04
+    },
+    {
+      "month": "2024-09",
+      "gmv": 2929450.71,
+      "order_cnt": 1173,
+      "days": 30,
+      "aov": 2497.4,
+      "mom_pct": -3.63
+    },
+    {
+      "month": "2024-10",
+      "gmv": 2963200.54,
+      "order_cnt": 1243,
+      "days": 31,
+      "aov": 2383.91,
+      "mom_pct": 1.15
+    },
+    {
+      "month": "2024-11",
+      "gmv": 2995222.54,
+      "order_cnt": 1183,
+      "days": 30,
+      "aov": 2531.89,
+      "mom_pct": 1.08
+    },
+    {
+      "month": "2024-12",
+      "gmv": 3111746.74,
+      "order_cnt": 1236,
+      "days": 31,
+      "aov": 2517.59,
+      "mom_pct": 3.89
+    }
+  ],
+  "weekly": {
+    "week_count": 52,
+    "partial_weeks_dropped": 1,
+    "wow_mean_abs_pct": 5.57,
+    "wow_max_up_pct": 18.91,
+    "wow_max_down_pct": -13.78,
+    "wow_std_pct": 7.38
+  },
+  "daily": {
+    "dod_mean_abs_pct": 24.24,
+    "dod_std_pct": 30.86,
+    "dod_p95_abs_pct": 63.53
+  },
+  "yoy": {
+    "years_covered": [
+      2024
+    ],
+    "year_count": 1,
+    "yoy_feasible": false,
+    "note": "仅覆盖 2024 年，缺少上年同期数据，年同比（YoY）无法计算。报告改用月环比（MoM）与周环比（WoW）描述短期变化，并在局限中说明。"
+  }
+}
