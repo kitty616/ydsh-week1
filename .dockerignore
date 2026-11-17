@@ -1,0 +1,11 @@
+# 构建上下文瘦身：镜像里用不到这些
+.git
+.gitignore
+.tmp
+_run*.log
+docs
+superset
+clickhouse
+*.docx
+*.xlsx
+*.zip

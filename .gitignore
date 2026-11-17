@@ -44,3 +44,6 @@ Thumbs.db
 # ===== Docker 持久化卷 =====
 mysql_data/
 hive_warehouse/
+
+# 本地临时目录（构建日志、中间产物、压测输出草稿）
+.tmp/

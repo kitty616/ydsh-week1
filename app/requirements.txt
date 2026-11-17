@@ -1,0 +1,10 @@
+streamlit==1.40.1
+pandas==2.2.3
+pyhive==0.7.0
+thrift==0.16.0
+thrift-sasl==0.4.3
+pure-sasl==0.6.2
+# 压力测试脚本要同时打 MySQL 服务层（Hive/CK 走 pyhive 与 HTTP）
+pymysql==1.1.1
+openai==1.54.4
+httpx==0.27.2

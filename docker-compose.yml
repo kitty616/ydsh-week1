@@ -8,7 +8,9 @@ services:
     container_name: ydsh-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: root
+      # 口令一律从 .env 取，缺了就直接启动失败（:? 语法），
+      # 不再退化成一个"看起来能跑"的默认值。
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?请在 .env 中设置 MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: metastore
       TZ: Asia/Shanghai
     command:
@@ -48,7 +50,7 @@ services:
         -Djavax.jdo.option.ConnectionDriverName=com.mysql.cj.jdbc.Driver
         -Djavax.jdo.option.ConnectionURL=jdbc:mysql://mysql:3306/metastore?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8
         -Djavax.jdo.option.ConnectionUserName=root
-        -Djavax.jdo.option.ConnectionPassword=root
+        -Djavax.jdo.option.ConnectionPassword=${MYSQL_ROOT_PASSWORD:?请在 .env 中设置 MYSQL_ROOT_PASSWORD}
         -Dmetastore.warehouse.dir=/user/hive/warehouse
     ports:
       - "9083:9083"
@@ -57,7 +59,10 @@ services:
       # 官方 apache/hive:4.0.0 镜像未内置 MySQL JDBC 驱动，
       # 不挂载会报 ClassNotFoundException: com.mysql.cj.jdbc.Driver
       - ./lib/mysql-connector-j-8.0.33.jar:/opt/hive/lib/mysql-connector-j-8.0.33.jar
-      - hive_warehouse:/user/hive/warehouse
+      # 卷挂在 /opt/hive/data/warehouse：与 hive-site.xml 的 hive.metastore.warehouse.dir
+      # 以及 Metastore 中已登记的 table LOCATION 完全一致。
+      # 之前挂在 /user/hive/warehouse，导致容器重建后元数据路径与真实文件路径错位。
+      - hive_warehouse:/opt/hive/data/warehouse
     healthcheck:
       test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/9083' || exit 1"]
       interval: 15s
@@ -91,7 +96,10 @@ services:
       # 覆盖默认 hive-site.xml，把 Tez/MR 计数器上限从 120 调大到 4000，
       # 否则 10_quality_assessment.sql 会报 Too many counters: 121 max=120
       - ./conf/hive-site.xml:/opt/hive/conf/hive-site.xml:ro
-      - hive_warehouse:/user/hive/warehouse
+      # 卷挂在 /opt/hive/data/warehouse：与 hive-site.xml 的 hive.metastore.warehouse.dir
+      # 以及 Metastore 中已登记的 table LOCATION 完全一致。
+      # 之前挂在 /user/hive/warehouse，导致容器重建后元数据路径与真实文件路径错位。
+      - hive_warehouse:/opt/hive/data/warehouse
     healthcheck:
       test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/10000' || exit 1"]
       interval: 15s
@@ -99,6 +107,146 @@ services:
       retries: 12
       start_period: 90s
 
+
+  # ---------------------------------------------------------------
+  # ClickHouse：ADS 结果的服务层（列存，支撑交互式查询与压测对比）
+  # Hive 负责重计算，ClickHouse 负责秒回；两者口径由 load_clickhouse.py 对齐。
+  # ---------------------------------------------------------------
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8
+    container_name: ydsh-clickhouse
+    restart: unless-stopped
+    depends_on:
+      hive-server:
+        condition: service_healthy
+    environment:
+      CLICKHOUSE_DB: ydsh_ads
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?请在 .env 中设置 CLICKHOUSE_PASSWORD}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+      TZ: Asia/Shanghai
+    ports:
+      - "8123:8123"   # HTTP 接口（脚本导入 / 压测走这里）
+      - "9000:9000"   # Native 协议
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - ./clickhouse/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      # /ping 不需要认证，用它做存活探测最稳
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8123/ping | grep -q Ok || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ---------------------------------------------------------------
+  # Superset：BI 仪表板
+  # 镜像是本地构建的（superset/Dockerfile），补了 pymysql / pyhive 驱动，
+  # 官方镜像里这两个都没有。
+  # 元数据放 MySQL 的 superset 库，bootstrap.sh 首次启动会自动建库、
+  # 升级 schema、建管理员、init 权限。
+  # ---------------------------------------------------------------
+  superset:
+    build:
+      context: ./superset
+      dockerfile: Dockerfile
+    image: ydsh/superset:4.1.1
+    container_name: ydsh-superset
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      hive-server:
+        condition: service_healthy
+    environment:
+      SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY:?SUPERSET_SECRET_KEY 未设置，请先在 .env 中生成}
+      SUPERSET_ADMIN_USER: ${SUPERSET_ADMIN_USER:-admin}
+      SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD:-admin}
+      SUPERSET_ADMIN_EMAIL: ${SUPERSET_ADMIN_EMAIL:-admin@ydsh.local}
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_USER: root
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?请在 .env 中设置 MYSQL_ROOT_PASSWORD}
+      # provision.py 拼 ClickHouse 连接串时要读，不能留空
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?请在 .env 中设置 CLICKHOUSE_PASSWORD}
+      PYTHONPATH: /app/pythonpath
+      TZ: Asia/Shanghai
+    ports:
+      - "8088:8088"
+    volumes:
+      - superset_home:/app/superset_home
+      # 初始化脚本只读挂载：建数据源/数据集/图表/仪表板，幂等可重复执行
+      - ./superset/provision.py:/app/pythonpath/provision.py:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8088/health || exit 1"]
+      interval: 20s
+      timeout: 6s
+      retries: 12
+      start_period: 90s
+
+  # ---------------------------------------------------------------
+  # Python App：Streamlit 对话式问答（NL2SQL 闭环）
+  # 复用第 3 周的 python/nl2sql.py 内核，执行层换成容器内可用的 pyhive。
+  # ---------------------------------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+    image: ydsh/app:4.1
+    container_name: ydsh-app
+    restart: unless-stopped
+    depends_on:
+      hive-server:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+    environment:
+      HIVE_CLIENT: pyhive
+      HIVE_HOST: hive-server
+      HIVE_PORT: "10000"
+      HIVE_DB: ydsh_ads
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_PORT: "8123"
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?请在 .env 中设置 CLICKHOUSE_PASSWORD}
+      # 大模型 Key 一律从 .env 注入，镜像里不含任何明文
+      ZHIPU_API_KEY: ${ZHIPU_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+      TZ: Asia/Shanghai
+    ports:
+      - "8501:8501"
+
+  # ---------------------------------------------------------------
+  # 大屏 JSON 接口：同一镜像换入口，跑标准库 HTTP 服务
+  # 大屏优先调 /api/dashboard.json，接口不通时回落到内嵌快照。
+  # ---------------------------------------------------------------
+  api:
+    image: ydsh/app:4.1
+    container_name: ydsh-api
+    restart: unless-stopped
+    depends_on:
+      - app
+    environment:
+      API_PORT: "8000"
+      HEALTH_PORT: "8000"
+      TZ: Asia/Shanghai
+    command: ["python", "app/api_server.py"]
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request as u; u.urlopen('http://127.0.0.1:8000/api/health', timeout=3)\""]
+      interval: 20s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+
 volumes:
   mysql_data:
   hive_warehouse:
+  clickhouse_data:
+  superset_home:
