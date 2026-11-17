@@ -12,7 +12,7 @@
  *
  * 用法：
  *   node tools/shot.js --url http://localhost:8088/login/ \
- *        --login admin:Ydsh@2026 \
+ *        --login admin:你的口令 \
  *        --goto http://localhost:8088/superset/dashboard/ydsh-week4-ops/ \
  *        --out docs/images/w4_superset.png --width 1600 --height 1000 --full
  *
