@@ -1,6 +1,6 @@
 # 云购生活 · 企业级数据仓库与经营分析可视化系统
 
-> 第 1–2 周交付物 · 环境搭建 / 数据导入 / 数据清洗（一）（二）/ Hive 四层数仓建模 / 探索性分析
+> 第 1–4 周交付物 · 环境搭建 / 数据清洗 / Hive 四层数仓 / 预测建模 / NL2SQL / 可视化与一键部署
 > 课程：企业项目实战实训 ｜ 数据科学与大数据技术（本科）
 
 ---
@@ -12,10 +12,12 @@
 | 第 1 周 | 环境搭建 → 数据导入 → 质量预评估 → 清洗（一） | `sql/ods/00–03`、`sql/clean/10–13` | `环境搭建笔记.md`、`数据质量预评估表.md` / `.xlsx`、`验收证据.md`、`答辩提纲.md`、`第1周_AI协同日志.md`、`第1周作业任务与提交清单（已填写）.docx` |
 | 第 2 周 | 清洗（二）→ 四层建模 → 探索性分析 | `sql/clean/20–23`、`sql/dwd/30–40` | `数据质量对比报告.docx`、`数仓架构设计文档.docx`（内嵌架构图）、`探索性分析简报.docx`、`第2周答辩提纲.md`、`第2周_AI协同日志.md`、`第2周作业任务与提交清单（已填写）.docx` |
 | 第 3 周 | DWS/ADS 指标层 + 预测建模 + NL2SQL | `sql/dws/50–51`、`sql/ads/60–61`、`python/`（含 LangChain 版 `nl2sql_chain.py`） | `指标定义文档.md`、`预测建模分析报告.md`、`NL2SQL设计与测试报告.md`、`AI洞察报告.md`、`AI应用反思.md`、`Git协同记录.md`、`第3周遗留问题处置.md` |
+| 第 4 周 | Superset 仪表板 + ECharts 大屏 + Streamlit 问答 + Docker 一键部署 | `superset/`、`dashboard/echarts/`、`app/`、`docker-compose.yml`、`python/bench_query.py` | `第4周_部署手册.md`、`第4周_API配置指南.md`、`第4周_压力测试记录.md`、`第4周_可视化设计说明.md`、`第4周作业任务与提交清单（已填写）.docx`、`第4周_AI协同日志.md` |
 
 > 第 2 周文档同时提供 Markdown 与 Word 两版：`数据质量清洗报告.md` ↔ `数据质量对比报告.docx`、`数仓架构设计.md` ↔ `数仓架构设计文档.docx`、`探索性分析简报.md` ↔ `探索性分析简报.docx`。内容一致，Word 版按提交清单要求命名。
 > 第 3 周起目录按层拆分：`sql/dws/`（多维汇总）、`sql/ads/`（应用指标）、`python/`（预测与 NL2SQL）。`data/daily_gmv.csv` 是预测脚本的唯一输入，已单独放行入库以保证可复现。
 > NL2SQL 提供两版实现：`nl2sql.py`（OpenAI SDK 直连，便于调试）与 `nl2sql_chain.py`（LangChain 编排，任务书指定技术栈）。两版共用同一套校验器与执行器，`--compare` 可做 A/B 对照。模型服务商由 `llm_provider.py` 统一解析，支持五家，填任意一家 Key 即可；已在智谱 `glm-5.3-flash` 上完成真实验证（6/6 生成并执行成功，跨层对账一致）。
+> 第 4 周新增 `superset/`（自建镜像 + 幂等 provision 脚本）、`dashboard/echarts/`（7 面板大屏）、`app/`（Streamlit + 取数 API）、`tools/shot.js`（CDP 截图工具）。`docker compose up -d` 一键起 7 个服务；`docs/images/w4_*.png` 为三端截图。
 
 ---
 
