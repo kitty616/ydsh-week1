@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>云购生活 · 经营分析数据大屏</title>
+<style>
+  /* ---------------------------------------------------------------
+     自适应方案：固定 1920×1080 舞台 + transform: scale()
+     为什么不用 rem/vw：大屏图表多、字号层级密，rem 换算在 4K / 笔记本
+     两种极端分辨率下容易把标题压成一行或溢出；scale 是等比缩放，
+     所有元素的相对关系恒定，只需计算一次比例。
+     --------------------------------------------------------------- */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: #05080f;
+    overflow: hidden;
+    font-family: "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", sans-serif;
+    color: #dbe9ff;
+  }
+
+  #stage {
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 1920px; height: 1080px;
+    transform-origin: center center;
+    background:
+      radial-gradient(1200px 600px at 20% 0%, rgba(34, 211, 238, .12), transparent 65%),
+      radial-gradient(1000px 500px at 85% 10%, rgba(129, 140, 248, .10), transparent 65%),
+      linear-gradient(180deg, #060b14 0%, #04070d 100%);
+    padding: 20px 28px 16px;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+
+  /* 细网格底纹：让深色背景不显得空，同时不干扰读数 */
+  #stage::before {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background-image:
+      linear-gradient(rgba(120, 170, 255, .045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(120, 170, 255, .045) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(circle at 50% 30%, #000 30%, transparent 88%);
+    -webkit-mask-image: radial-gradient(circle at 50% 30%, #000 30%, transparent 88%);
+  }
+
+  /* ---------------- 标题栏 ---------------- */
+  header {
+    height: 72px; flex: 0 0 auto;
+    display: flex; align-items: center; justify-content: space-between;
+    position: relative;
+  }
+  header .bar {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(34, 211, 238, .55), transparent);
+  }
+  .brand { display: flex; align-items: baseline; gap: 16px; }
+  .brand h1 {
+    font-size: 32px; font-weight: 700; letter-spacing: 3px;
+    background: linear-gradient(180deg, #ffffff 10%, #7dd3fc 95%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    text-shadow: 0 0 22px rgba(56, 189, 248, .18);
+  }
+  .brand .sub { font-size: 13px; color: #6f88a8; letter-spacing: 2px; }
+  .meta { display: flex; align-items: center; gap: 22px; font-size: 13px; color: #7b93b3; }
+  .meta b { color: #cfe6ff; font-weight: 600; letter-spacing: .5px; }
+  .dot-live {
+    display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    background: #34d399; margin-right: 7px; box-shadow: 0 0 10px #34d399;
+    animation: breathe 2.4s ease-in-out infinite;
+  }
+  @keyframes breathe { 0%, 100% { opacity: 1; } 50% { opacity: .28; } }
+
+  /* ---------------- KPI 卡片 ---------------- */
+  .kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; flex: 0 0 auto; }
+  .kpi {
+    position: relative; padding: 14px 18px 12px; border-radius: 6px;
+    background: linear-gradient(160deg, rgba(20, 38, 62, .92), rgba(10, 20, 34, .78));
+    border: 1px solid rgba(56, 189, 248, .16);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04);
+  }
+  .kpi::after {
+    content: ""; position: absolute; left: 0; top: 0; width: 34px; height: 2px;
+    background: linear-gradient(90deg, #22d3ee, transparent);
+  }
+  .kpi .label { font-size: 12.5px; color: #7f97b6; letter-spacing: 1px; }
+  .kpi .value {
+    margin-top: 6px; font-size: 30px; font-weight: 700; color: #eaf4ff;
+    font-variant-numeric: tabular-nums; letter-spacing: .5px;
+    text-shadow: 0 0 18px rgba(56, 189, 248, .22);
+  }
+  .kpi .value small { font-size: 13px; font-weight: 400; color: #7f97b6; margin-left: 6px; }
+  .kpi .hint { margin-top: 4px; font-size: 11.5px; color: #5f7794; }
+  .kpi.warn .value { color: #fbbf24; text-shadow: 0 0 18px rgba(251, 191, 36, .2); }
+
+  /* ---------------- 面板 ---------------- */
+  .row { display: grid; gap: 14px; min-height: 0; }
+  .row.top { grid-template-columns: 1.05fr 1.42fr 1.05fr; flex: 400 1 0; }
+  .row.bottom { grid-template-columns: .88fr 1.16fr .82fr 1.24fr; flex: 440 1 0; }
+
+  .panel {
+    position: relative; min-height: 0; padding: 12px 14px 10px;
+    border-radius: 6px; display: flex; flex-direction: column;
+    background: linear-gradient(165deg, rgba(16, 31, 51, .82), rgba(8, 15, 26, .72));
+    border: 1px solid rgba(56, 189, 248, .14);
+  }
+  /* 四角装饰：只做视觉锚点，不遮挡数据 */
+  .panel::before, .panel::after {
+    content: ""; position: absolute; width: 12px; height: 12px; pointer-events: none;
+    border-color: rgba(34, 211, 238, .5); border-style: solid;
+  }
+  .panel::before { left: -1px; top: -1px; border-width: 1px 0 0 1px; }
+  .panel::after { right: -1px; bottom: -1px; border-width: 0 1px 1px 0; }
+
+  .panel h2 {
+    font-size: 15px; font-weight: 600; letter-spacing: 1.2px; color: #cfe6ff;
+    display: flex; align-items: center; gap: 8px; flex: 0 0 auto;
+  }
+  .panel h2 i {
+    width: 3px; height: 13px; border-radius: 2px;
+    background: linear-gradient(180deg, #22d3ee, #3b82f6);
+  }
+  .panel h2 span.note {
+    margin-left: auto; font-size: 11.5px; font-weight: 400;
+    color: #5f7794; letter-spacing: 0;
+  }
+  .chart { flex: 1 1 auto; min-height: 0; width: 100%; }
+
+  /* ---------------- 门店排行（HTML 表，比图表更紧凑） ---------------- */
+  .rank { flex: 1 1 auto; min-height: 0; overflow: hidden; margin-top: 6px; }
+  .rank-row {
+    display: grid; grid-template-columns: 30px 1fr 76px 84px;
+    align-items: center; gap: 8px; padding: 5px 0;
+    border-bottom: 1px dashed rgba(90, 130, 180, .16);
+    font-size: 12.5px;
+  }
+  .rank-row:last-child { border-bottom: none; }
+  .rank-no {
+    text-align: center; font-size: 11.5px; font-weight: 700; color: #7f97b6;
+    border-radius: 3px; line-height: 20px; background: rgba(120, 170, 255, .08);
+  }
+  .rank-row:nth-child(1) .rank-no { color: #0a1420; background: linear-gradient(135deg, #fbbf24, #f59e0b); }
+  .rank-row:nth-child(2) .rank-no { color: #0a1420; background: linear-gradient(135deg, #e2e8f0, #94a3b8); }
+  .rank-row:nth-child(3) .rank-no { color: #0a1420; background: linear-gradient(135deg, #f0a97a, #c2703c); }
+  .rank-name { color: #d5e6fb; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rank-name em { font-style: normal; color: #5f7794; font-size: 11px; margin-left: 6px; }
+  .rank-bar { position: relative; height: 6px; border-radius: 3px; background: rgba(90, 130, 180, .14); overflow: hidden; }
+  .rank-bar i {
+    position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px;
+    background: linear-gradient(90deg, #0891b2, #22d3ee);
+  }
+  .rank-val { text-align: right; color: #8fd6f5; font-variant-numeric: tabular-nums; }
+
+  footer {
+    flex: 0 0 auto; height: 20px; display: flex; align-items: center;
+    justify-content: space-between; font-size: 11.5px; color: #4e6480;
+    letter-spacing: .5px;
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+
+  <header>
+    <div class="brand">
+      <h1>云购生活 · 经营分析数据大屏</h1>
+      <div class="sub">ENTERPRISE DATA WAREHOUSE / VISUAL ANALYTICS</div>
+    </div>
+    <div class="meta">
+      <div><span class="dot-live"></span>数据源 <b>Hive 4.0 · ADS 层</b></div>
+      <div>观察期 <b>2024-01-01 ~ 2024-12-31</b></div>
+      <div id="clock">--:--:--</div>
+    </div>
+    <div class="bar"></div>
+  </header>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="row top">
+    <section class="panel">
+      <h2><i></i>月度成交趋势<span class="note">GMV（万元） / 环比（%）</span></h2>
+      <div class="chart" id="c-monthly"></div>
+    </section>
+    <section class="panel">
+      <h2><i></i>下单时段 × 品类热力<span class="note">占该品类全天比重</span></h2>
+      <div class="chart" id="c-heat"></div>
+    </section>
+    <section class="panel">
+      <h2><i></i>品类销售构成<span class="note">GMV（万元）</span></h2>
+      <div class="chart" id="c-category"></div>
+    </section>
+  </div>
+
+  <div class="row bottom">
+    <section class="panel">
+      <h2><i></i>区域分布<span class="note">TOP 12 省级单元 · GMV（万元）</span></h2>
+      <div class="chart" id="c-region"></div>
+    </section>
+    <section class="panel">
+      <h2><i></i>门店经营质量<span class="note">GMV × 客单价，气泡＝订单量</span></h2>
+      <div class="chart" id="c-scatter"></div>
+    </section>
+    <section class="panel">
+      <h2><i></i>支付方式占比<span class="note">按实付金额</span></h2>
+      <div class="chart" id="c-pay"></div>
+    </section>
+    <section class="panel">
+      <h2><i></i>门店 GMV 排行<span class="note">TOP 10</span></h2>
+      <div class="rank" id="ranks"></div>
+    </section>
+  </div>
+
+  <footer>
+    <div id="foot-left">数据来源：ydsh_ads / ydsh_dws / ydsh_dwd（Hive 四层数仓）　生成方式：python/export_dashboard_data.py</div>
+    <div id="foot-right"></div>
+  </footer>
+</div>
+
+<script src="vendor/echarts.min.js"></script>
+<script src="data/dashboard.js"></script>
+<script>
+/* ================================================================
+   数据加载：优先请求后端 JSON 接口（app/api_server.py），
+   失败则回落到 data/dashboard.js 内嵌快照。
+   这样「答辩现场接口没起」和「直接双击打开 HTML」两种情况都不会白屏。
+   ================================================================ */
+const API = (window.DASHBOARD_API || 'http://127.0.0.1:8000/api/dashboard.json');
+
+async function loadData() {
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 1500);
+    const res = await fetch(API, { signal: ctrl.signal, cache: 'no-store' });
+    clearTimeout(timer);
+    if (!res.ok) throw new Error(res.status);
+    const json = await res.json();
+    json.__from = 'API';
+    return json;
+  } catch (e) {
+    const d = window.DASHBOARD_DATA;
+    d.__from = 'EMBED';
+    return d;
+  }
+}
+
+/* ---------------- 通用样式常量 ---------------- */
+const C = {
+  cyan: '#22d3ee', blue: '#3b82f6', indigo: '#818cf8',
+  green: '#34d399', amber: '#fbbf24', rose: '#fb7185',
+  axis: '#5f7794', split: 'rgba(90,130,180,.14)', text: '#dbe9ff',
+};
+const AXIS_LABEL = { color: C.axis, fontSize: 11 };
+const TOOLTIP = {
+  backgroundColor: 'rgba(8,18,32,.94)',
+  borderColor: 'rgba(56,189,248,.35)',
+  borderWidth: 1,
+  textStyle: { color: '#dbe9ff', fontSize: 12 },
+  extraCssText: 'box-shadow:0 8px 24px rgba(0,0,0,.45);border-radius:4px;',
+};
+const wan = v => +(v / 10000).toFixed(2);
+const nf = n => n.toLocaleString('zh-CN');
+
+/* ---------------- KPI 卡片 ---------------- */
+function renderKpi(k) {
+  const items = [
+    { label: 'GMV 成交总额', value: (k.gmv / 10000).toFixed(2), unit: '万元', hint: '含后续取消单，取消率另计' },
+    { label: '订单量', value: nf(k.order_cnt), unit: '单', hint: '去重 order_id' },
+    { label: '客单价 AOV', value: k.aov.toFixed(2), unit: '元/单', hint: 'GMV ÷ 订单量' },
+    { label: '活跃用户', value: nf(k.active_user), unit: '人', hint: '观察期内有下单行为' },
+    { label: '订单取消率', value: (k.cancel_rate * 100).toFixed(2), unit: '%', hint: 'OS04 状态占比', warn: true },
+    { label: '整体折扣率', value: (k.discount_rate * 100).toFixed(2), unit: '%', hint: '优惠 ÷（实付+优惠）' },
+  ];
+  document.getElementById('kpis').innerHTML = items.map(it => `
+    <div class="kpi ${it.warn ? 'warn' : ''}">
+      <div class="label">${it.label}</div>
+      <div class="value">${it.value}<small>${it.unit}</small></div>
+      <div class="hint">${it.hint}</div>
+    </div>`).join('');
+}
+
+/* ---------------- 1. 月度趋势 ---------------- */
+function chartMonthly(d) {
+  const chart = echarts.init(document.getElementById('c-monthly'));
+  const months = d.monthly.map(x => x.month.slice(5) + '月');
+  const gmv = d.monthly.map(x => wan(x.gmv));
+  const mom = d.monthly.map(x => x.mom_rate == null ? null : +(x.mom_rate * 100).toFixed(2));
+
+  chart.setOption({
+    grid: { left: 46, right: 46, top: 34, bottom: 26 },
+    tooltip: {
+      ...TOOLTIP, trigger: 'axis', axisPointer: { type: 'shadow' },
+      formatter: p => {
+        const i = p[0].dataIndex;
+        const m = d.monthly[i];
+        const momTxt = m.mom_rate == null ? '—' : (m.mom_rate * 100).toFixed(2) + '%';
+        return `<b>${m.month}</b><br/>GMV　${nf(Math.round(m.gmv / 10000 * 100) / 100)} 万元
+                <br/>订单　${nf(m.order_cnt)} 单<br/>环比　${momTxt}`;
+      },
+    },
+    legend: { data: ['GMV', '环比'], right: 4, top: 2, itemWidth: 10, itemHeight: 8, textStyle: { color: C.axis, fontSize: 11 } },
+    xAxis: {
+      type: 'category', data: months,
+      axisLine: { lineStyle: { color: 'rgba(90,130,180,.3)' } },
+      axisTick: { show: false }, axisLabel: AXIS_LABEL,
+    },
+    yAxis: [
+      {
+        type: 'value', name: '万元', nameTextStyle: { color: C.axis, fontSize: 10 },
+        axisLabel: AXIS_LABEL, splitLine: { lineStyle: { color: C.split } },
+      },
+      {
+        type: 'value', name: '%', nameTextStyle: { color: C.axis, fontSize: 10 },
+        axisLabel: AXIS_LABEL, splitLine: { show: false },
+      },
+    ],
+    series: [
+      {
+        name: 'GMV', type: 'bar', data: gmv, barWidth: '46%',
+        itemStyle: {
+          borderRadius: [3, 3, 0, 0],
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: 'rgba(34,211,238,.95)' },
+            { offset: 1, color: 'rgba(34,211,238,.12)' },
+          ]),
+        },
+        emphasis: { itemStyle: { color: '#67e8f9' } },
+      },
+      {
+        name: '环比', type: 'line', yAxisIndex: 1, data: mom, smooth: true,
+        symbol: 'circle', symbolSize: 5, connectNulls: true,
+        lineStyle: { width: 1.6, color: C.amber },
+        itemStyle: { color: C.amber },
+      },
+    ],
+  });
+  return chart;
+}
+
+/* ---------------- 2. 时段 × 品类热力图 ---------------- */
+function chartHeat(d) {
+  const chart = echarts.init(document.getElementById('c-heat'));
+  const h = d.heatmap;
+  const cats = h.categories, hours = h.hours;
+  // ECharts heatmap 的 data 是 [xIndex, yIndex, value]，x 为时段、y 为品类
+  // 口径为「订单数」：明细表的 unit_price 是商品标价，与订单实付相差约 17 倍，
+  // 拿它算金额占比会整体失真，详见 docs/第4周可视化设计说明.md「口径修正」一节
+  const data = h.data.map(([hh, ci, pct, ord]) => [hh, ci, pct]);
+  const maxV = Math.max(...data.map(x => x[2]));
+  const minV = Math.min(...data.map(x => x[2]));
+  const rawOrders = {};
+  h.data.forEach(([hh, ci, pct, ord]) => { rawOrders[hh + '-' + ci] = ord; });
+
+  chart.setOption({
+    grid: { left: 74, right: 58, top: 14, bottom: 48 },
+    tooltip: {
+      ...TOOLTIP,
+      formatter: p => {
+        const key = p.data[0] + '-' + p.data[1];
+        return `${hours[p.data[0]]}:00　<b>${cats[p.data[1]]}</b><br/>`
+          + `订单 ${rawOrders[key]} 单　占该品类全天 ${p.data[2].toFixed(2)}%`;
+      },
+    },
+    xAxis: {
+      type: 'category', data: hours.map(x => x + '时'), splitArea: { show: false },
+      axisLine: { lineStyle: { color: 'rgba(90,130,180,.3)' } },
+      axisTick: { show: false },
+      axisLabel: { ...AXIS_LABEL, interval: 1 },
+    },
+    yAxis: {
+      type: 'category', data: cats,
+      axisLine: { lineStyle: { color: 'rgba(90,130,180,.3)' } },
+      axisTick: { show: false }, axisLabel: AXIS_LABEL,
+    },
+    visualMap: {
+      min: minV, max: maxV, calculable: false, orient: 'vertical',
+      right: 2, top: 'center', itemWidth: 10, itemHeight: 110,
+      textStyle: { color: C.axis, fontSize: 10 },
+      formatter: v => v.toFixed(1) + '%',
+      inRange: { color: ['#0b2237', '#12557a', '#0e8fae', '#22d3ee', '#a5f3fc'] },
+    },
+    series: [{
+      type: 'heatmap', data,
+      itemStyle: { borderColor: 'rgba(5,10,18,.65)', borderWidth: 1 },
+      emphasis: { itemStyle: { borderColor: '#fff', borderWidth: 1, shadowBlur: 8, shadowColor: 'rgba(34,211,238,.6)' } },
+    }],
+  });
+  return chart;
+}
+
+/* ---------------- 3. 品类构成 ---------------- */
+function chartCategory(d) {
+  const chart = echarts.init(document.getElementById('c-category'));
+  const rows = [...d.category].sort((a, b) => a.gmv - b.gmv);   // 横向条形：小的在下面
+  chart.setOption({
+    grid: { left: 68, right: 54, top: 12, bottom: 22 },
+    tooltip: {
+      ...TOOLTIP, trigger: 'axis', axisPointer: { type: 'shadow' },
+      formatter: p => {
+        const r = rows[p[0].dataIndex];
+        return `<b>${r.category}</b><br/>GMV ${wan(r.gmv)} 万元（占比 ${(r.share * 100).toFixed(2)}%）<br/>订单 ${nf(r.order_cnt)} 单`;
+      },
+    },
+    xAxis: { type: 'value', axisLabel: AXIS_LABEL, splitLine: { lineStyle: { color: C.split } } },
+    yAxis: {
+      type: 'category', data: rows.map(x => x.category),
+      axisLine: { show: false }, axisTick: { show: false }, axisLabel: AXIS_LABEL,
+    },
+    series: [{
+      type: 'bar', data: rows.map(x => wan(x.gmv)), barWidth: '54%',
+      itemStyle: {
+        borderRadius: [0, 3, 3, 0],
+        color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+          { offset: 0, color: 'rgba(59,130,246,.25)' },
+          { offset: 1, color: 'rgba(129,140,248,.92)' },
+        ]),
+      },
+      label: {
+        show: true, position: 'right', color: '#8fd6f5', fontSize: 11,
+        formatter: p => rows[p.dataIndex].gmv >= 10000
+          ? (p.value).toFixed(0) + '万'
+          : p.value.toFixed(1) + '万',
+      },
+    }],
+  });
+  return chart;
+}
+
+/* ---------------- 4. 区域分布 ---------------- */
+function chartRegion(d) {
+  const chart = echarts.init(document.getElementById('c-region'));
+  const rows = [...d.region].sort((a, b) => a.gmv - b.gmv).slice(-12);  // 展示前 12 个省级单元
+  chart.setOption({
+    grid: { left: 62, right: 48, top: 8, bottom: 18 },
+    tooltip: {
+      ...TOOLTIP, trigger: 'axis', axisPointer: { type: 'shadow' },
+      formatter: p => {
+        const r = rows[p[0].dataIndex];
+        return `<b>${r.province}</b><br/>GMV ${wan(r.gmv)} 万元（占比 ${(r.ratio * 100).toFixed(2)}%）<br/>门店订单 ${nf(r.order_cnt)} 单　客单价 ${r.aov.toFixed(2)} 元`;
+      },
+    },
+    xAxis: { type: 'value', axisLabel: AXIS_LABEL, splitLine: { lineStyle: { color: C.split } } },
+    yAxis: {
+      type: 'category', data: rows.map(x => x.province),
+      axisLine: { show: false }, axisTick: { show: false }, axisLabel: AXIS_LABEL,
+    },
+    series: [{
+      type: 'bar', data: rows.map(x => wan(x.gmv)), barWidth: '56%',
+      itemStyle: {
+        borderRadius: [0, 3, 3, 0],
+        color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+          { offset: 0, color: 'rgba(16,185,129,.22)' },
+          { offset: 1, color: 'rgba(52,211,153,.9)' },
+        ]),
+      },
+      label: { show: true, position: 'right', color: '#7fe3c0', fontSize: 10.5, formatter: p => p.value.toFixed(0) },
+    }],
+  });
+  return chart;
+}
+
+/* ---------------- 5. 门店散点 ---------------- */
+function chartScatter(d) {
+  const chart = echarts.init(document.getElementById('c-scatter'));
+  const pts = d.store_scatter.map(s => ({
+    name: s.name, province: s.province,
+    value: [wan(s.gmv), s.aov, s.order_cnt],
+  }));
+  const avgGmv = pts.reduce((a, b) => a + b.value[0], 0) / (pts.length || 1);
+  const avgAov = pts.reduce((a, b) => a + b.value[1], 0) / (pts.length || 1);
+
+  chart.setOption({
+    grid: { left: 56, right: 22, top: 24, bottom: 38 },
+    tooltip: {
+      ...TOOLTIP,
+      formatter: p => `<b>${p.data.name}</b>（${p.data.province}）<br/>GMV ${p.value[0].toFixed(1)} 万元<br/>客单价 ${p.value[1].toFixed(2)} 元<br/>订单 ${nf(p.value[2])} 单`,
+    },
+    xAxis: {
+      type: 'value', name: 'GMV（万元）', nameLocation: 'middle', nameGap: 24,
+      nameTextStyle: { color: C.axis, fontSize: 10.5 },
+      axisLabel: AXIS_LABEL, splitLine: { lineStyle: { color: C.split } },
+    },
+    yAxis: {
+      type: 'value', name: '客单价（元）', nameTextStyle: { color: C.axis, fontSize: 10.5 },
+      axisLabel: AXIS_LABEL, splitLine: { lineStyle: { color: C.split } }, scale: true,
+    },
+    series: [{
+      type: 'scatter', data: pts,
+      symbolSize: v => Math.max(7, Math.sqrt(v[2]) * 0.55),
+      itemStyle: {
+        color: new echarts.graphic.RadialGradient(0.4, 0.35, 0.9, [
+          { offset: 0, color: 'rgba(165,243,252,.95)' },
+          { offset: 1, color: 'rgba(14,116,144,.6)' },
+        ]),
+        borderColor: 'rgba(34,211,238,.55)', borderWidth: 1, opacity: .9,
+      },
+      emphasis: { itemStyle: { shadowBlur: 14, shadowColor: 'rgba(34,211,238,.8)' } },
+      markLine: {
+        silent: true, symbol: 'none',
+        lineStyle: { color: 'rgba(251,191,36,.42)', type: 'dashed', width: 1 },
+        label: { color: 'rgba(251,191,36,.75)', fontSize: 10, formatter: p => p.value.toFixed(0) },
+        data: [{ xAxis: avgGmv }, { yAxis: avgAov }],
+      },
+    }],
+  });
+  return chart;
+}
+
+/* ---------------- 6. 支付方式 ---------------- */
+function chartPay(d) {
+  const chart = echarts.init(document.getElementById('c-pay'));
+  const total = d.pay_type.reduce((a, b) => a + b.gmv, 0);
+  chart.setOption({
+    tooltip: {
+      ...TOOLTIP,
+      formatter: p => `${p.name}<br/>${p.value} 万元（${p.percent}%）<br/>订单 ${nf(p.data.cnt)} 单`,
+    },
+    legend: {
+      orient: 'vertical', right: 0, top: 'center', itemWidth: 9, itemHeight: 9,
+      itemGap: 12, textStyle: { color: C.axis, fontSize: 11.5 },
+      formatter: name => {
+        const it = d.pay_type.find(x => x.name === name);
+        return `${name}  ${(it.ratio * 100).toFixed(1)}%`;
+      },
+    },
+    series: [{
+      type: 'pie', radius: ['52%', '74%'], center: ['38%', '52%'],
+      avoidLabelOverlap: true, padAngle: 1.5,
+      itemStyle: { borderColor: '#08111e', borderWidth: 2, borderRadius: 3 },
+      label: {
+        show: true, position: 'center',
+        formatter: () => `{v|${(total / 10000).toFixed(0)}}\n{u|万元}`,
+        rich: {
+          v: { color: '#eaf4ff', fontSize: 22, fontWeight: 700, lineHeight: 26 },
+          u: { color: C.axis, fontSize: 11 },
+        },
+      },
+      emphasis: { label: { show: true }, scaleSize: 6 },
+      data: d.pay_type.map((x, i) => ({
+        name: x.name, value: wan(x.gmv), cnt: x.cnt,
+        itemStyle: { color: [C.cyan, C.blue, C.indigo, C.green][i % 4] },
+      })),
+    }],
+  });
+  return chart;
+}
+
+/* ---------------- 7. 门店排行（HTML） ---------------- */
+function renderRanks(d) {
+  const top = d.store_rank.slice(0, 10);
+  const max = Math.max(...top.map(x => x.gmv));
+  document.getElementById('ranks').innerHTML = top.map((x, i) => `
+    <div class="rank-row">
+      <div class="rank-no">${x.rank}</div>
+      <div class="rank-name">${x.store_name}<em>${x.province.replace('省', '').replace('市', '')}</em></div>
+      <div class="rank-bar"><i style="width:${(x.gmv / max * 100).toFixed(1)}%"></i></div>
+      <div class="rank-val">${wan(x.gmv).toFixed(0)} 万</div>
+    </div>`).join('');
+}
+
+/* ---------------- 舞台缩放 ---------------- */
+function fitStage() {
+  const s = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+  const stage = document.getElementById('stage');
+  stage.style.transform = `translate(-50%, -50%) scale(${s})`;
+}
+
+/* ---------------- 时钟 ---------------- */
+function tickClock() {
+  const t = new Date();
+  const p = n => String(n).padStart(2, '0');
+  document.getElementById('clock').textContent =
+    `${p(t.getHours())}:${p(t.getMinutes())}:${p(t.getSeconds())}`;
+}
+
+/* ---------------- 启动 ---------------- */
+loadData().then(d => {
+  renderKpi(d.kpi);
+  renderRanks(d);
+  const charts = [
+    chartMonthly(d), chartHeat(d), chartCategory(d),
+    chartRegion(d), chartScatter(d), chartPay(d),
+  ];
+
+  // 舞台是等比缩放，容器尺寸不变，因此只需在窗口尺寸变化时重算 scale；
+  // 图表本身不用 resize（这也是 scale 方案比 rem 省事的地方）。
+  fitStage();
+  window.addEventListener('resize', fitStage);
+
+  document.getElementById('foot-right').textContent =
+    `数据时点 ${d.generated_at}　·　${d.__from === 'API' ? '实时接口' : '内嵌快照'}`;
+  tickClock(); setInterval(tickClock, 1000);
+
+  window.__charts = charts;
+}).catch(err => {
+  document.getElementById('foot-left').textContent = '数据加载失败：' + err.message;
+});
+</script>
+</body>
+</html>

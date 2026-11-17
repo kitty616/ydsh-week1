@@ -1,0 +1,93 @@
+{
+  "generated_at": "2026-11-17 09:25:26",
+  "e1_partition": [
+    {
+      "case": "全表（无谓词）",
+      "partitions": 366,
+      "ms": 1325.5
+    },
+    {
+      "case": "分区裁剪 order_date = 常量",
+      "partitions": 1,
+      "ms": 556.8
+    },
+    {
+      "case": "分区键包函数 substr(order_date,1,6)",
+      "partitions": 0,
+      "ms": 413.6
+    }
+  ],
+  "e2_two_stage": [
+    {
+      "case": "普通 JOIN",
+      "ms": 2358.6,
+      "auto_mapjoin": true
+    },
+    {
+      "case": "/*+ MAPJOIN(s) */",
+      "ms": 2381.4,
+      "auto_mapjoin": true
+    }
+  ],
+  "e3_engines": [
+    {
+      "query": "月度 GMV（12 行）",
+      "hive": 731.2,
+      "clickhouse": 4.3,
+      "mysql": 0.3
+    },
+    {
+      "query": "日粒度 GMV（366 行）",
+      "hive": 777.5,
+      "clickhouse": 6.6,
+      "mysql": 1.8
+    },
+    {
+      "query": "品类 GMV（8 行）",
+      "hive": 764.6,
+      "clickhouse": 6.0,
+      "mysql": 0.4
+    }
+  ],
+  "e4_concurrency": [
+    {
+      "engine": "hive",
+      "workers": 4,
+      "total": 12,
+      "ok": 12,
+      "err": 0,
+      "wall_s": 2.88,
+      "qps": 4.17,
+      "p50": 850.8,
+      "p95": 1247.7,
+      "max": 1247.7,
+      "err_sample": []
+    },
+    {
+      "engine": "clickhouse",
+      "workers": 8,
+      "total": 40,
+      "ok": 40,
+      "err": 0,
+      "wall_s": 0.04,
+      "qps": 924.83,
+      "p50": 7.1,
+      "p95": 10.7,
+      "max": 11.6,
+      "err_sample": []
+    },
+    {
+      "engine": "mysql",
+      "workers": 8,
+      "total": 40,
+      "ok": 40,
+      "err": 0,
+      "wall_s": 0.05,
+      "qps": 728.08,
+      "p50": 3.2,
+      "p95": 5.9,
+      "max": 7.0,
+      "err_sample": []
+    }
+  ]
+}
