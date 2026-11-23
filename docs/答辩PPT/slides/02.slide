@@ -1,0 +1,72 @@
+<Slide style={{ width: '1280px', height: '720px', padding: '60px', background: '#FFFFFF', flexDirection: 'column' }}>
+    <Box style={{ width: '100%', height: 22, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Text style={{ fontSize: 14, color: '#3D7BD9', letterSpacing: 1.5 }}>项目概览</Text>
+        <Text style={{ fontSize: 14, color: '#8B97A8' }}>云购生活 · 第 5 周综合答辩</Text>
+    </Box>
+
+    <Text style={{ fontSize: 34, fontWeight: 'bold', color: '#0E3F8C', lineHeight: 1.25, marginTop: 6 }}>一页看懂：7 个位置，同一个数</Text>
+
+    <Box style={{ width: '100%', height: 1, background: '#D6DCE5', marginTop: 10, marginBottom: 16 }} />
+
+    <Box style={{ flex: 1, width: '100%', flexDirection: 'column' }}>
+        <Text style={{ fontSize: 19, color: '#4A5568', lineHeight: 1.55 }}>
+            从 6 个 CSV、114,809 行原始数据，到四层数仓、预测模型、自然语言问数和一块实时大屏——整条链路一条命令起、一条命令验。
+        </Text>
+
+        <Box style={{ flexDirection: 'row', gap: 32, marginTop: 24 }}>
+            <Box style={{ flex: 1, padding: '20px 24px', background: '#F0F5FC', border: '1px solid #D6DCE5', borderRadius: 4, flexDirection: 'column' }}>
+                <Text style={{ fontSize: 14, color: '#4A5568' }}>全年 GMV（元）</Text>
+                <Text style={{ fontSize: 44, fontWeight: 'bold', color: '#0E3F8C', lineHeight: 1.2, marginTop: 8 }}>36,116,687.06</Text>
+                <Text style={{ fontSize: 14, color: '#8B97A8', marginTop: 6 }}>14,398 单 · 客单价 2,508.45 元</Text>
+            </Box>
+            <Box style={{ flex: 1, padding: '20px 24px', background: '#F0F5FC', border: '1px solid #D6DCE5', borderRadius: 4, flexDirection: 'column' }}>
+                <Text style={{ fontSize: 14, color: '#4A5568' }}>端到端联调断言</Text>
+                <Text style={{ fontSize: 44, fontWeight: 'bold', color: '#1E4FA8', lineHeight: 1.2, marginTop: 8 }}>67 项 / 0 失败</Text>
+                <Text style={{ fontSize: 14, color: '#8B97A8', marginTop: 6 }}>9 个环节 · 30 秒跑完 · 只读可复现</Text>
+            </Box>
+            <Box style={{ flex: 1, padding: '20px 24px', background: '#F0F5FC', border: '1px solid #D6DCE5', borderRadius: 4, flexDirection: 'column' }}>
+                <Text style={{ fontSize: 14, color: '#4A5568' }}>7 天 GMV 预测 MAPE</Text>
+                <Text style={{ fontSize: 44, fontWeight: 'bold', color: '#1E4FA8', lineHeight: 1.2, marginTop: 8 }}>11.79%</Text>
+                <Text style={{ fontSize: 14, color: '#8B97A8', marginTop: 6 }}>优于近 7 日均值基线 13.93%</Text>
+            </Box>
+        </Box>
+
+        <Box style={{ flexDirection: 'row', alignItems: 'center', marginTop: 28 }}>
+            <Box style={{ flex: 1, padding: '12px 10px', background: '#FFFFFF', border: '1px solid #3D7BD9', borderRadius: 3, alignItems: 'center' }}>
+                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#0E3F8C' }}>ODS</Text>
+                <Text style={{ fontSize: 13, color: '#4A5568', marginTop: 2 }}>6 表 / 114,809 行</Text>
+            </Box>
+            <Text style={{ fontSize: 18, color: '#8B97A8', marginLeft: 10, marginRight: 10 }}>→</Text>
+            <Box style={{ flex: 1, padding: '12px 10px', background: '#FFFFFF', border: '1px solid #3D7BD9', borderRadius: 3, alignItems: 'center' }}>
+                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#0E3F8C' }}>DWD</Text>
+                <Text style={{ fontSize: 13, color: '#4A5568', marginTop: 2 }}>20 表 / 14,398 单</Text>
+            </Box>
+            <Text style={{ fontSize: 18, color: '#8B97A8', marginLeft: 10, marginRight: 10 }}>→</Text>
+            <Box style={{ flex: 1, padding: '12px 10px', background: '#FFFFFF', border: '1px solid #3D7BD9', borderRadius: 3, alignItems: 'center' }}>
+                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#0E3F8C' }}>DWS</Text>
+                <Text style={{ fontSize: 13, color: '#4A5568', marginTop: 2 }}>7 表 / 五维汇总</Text>
+            </Box>
+            <Text style={{ fontSize: 18, color: '#8B97A8', marginLeft: 10, marginRight: 10 }}>→</Text>
+            <Box style={{ flex: 1, padding: '12px 10px', background: '#FFFFFF', border: '1px solid #3D7BD9', borderRadius: 3, alignItems: 'center' }}>
+                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#0E3F8C' }}>ADS</Text>
+                <Text style={{ fontSize: 13, color: '#4A5568', marginTop: 2 }}>10 表 / 即取即用</Text>
+            </Box>
+            <Text style={{ fontSize: 18, color: '#8B97A8', marginLeft: 10, marginRight: 10 }}>→</Text>
+            <Box style={{ flex: 1, padding: '12px 10px', background: '#0E3F8C', borderRadius: 3, alignItems: 'center' }}>
+                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#FFFFFF' }}>应用</Text>
+                <Text style={{ fontSize: 13, color: '#C9D8EF', marginTop: 2 }}>BI / 大屏 / 问答</Text>
+            </Box>
+        </Box>
+
+        <Box style={{ marginTop: 22, padding: '14px 20px', background: '#E8EFF8', borderLeft: '3px solid #1E4FA8' }}>
+            <Text style={{ fontSize: 17, color: '#0E3F8C', lineHeight: 1.5 }}>
+                验收的硬标准只有一条：<span style={{ fontWeight: 'bold' }}>同一个 GMV，在 Hive、MySQL、ClickHouse、仪表板、大屏、接口里必须完全一致</span>——目前七个位置同值，误差 0 元。
+            </Text>
+        </Box>
+    </Box>
+
+    <Box style={{ width: '100%', height: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+        <Text style={{ fontSize: 14, color: '#8B97A8' }}>云购生活数据仓库项目组</Text>
+        <Text style={{ fontSize: 14, color: '#0E3F8C' }}>02</Text>
+    </Box>
+</Slide>

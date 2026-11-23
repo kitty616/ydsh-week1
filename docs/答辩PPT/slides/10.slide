@@ -1,0 +1,24 @@
+<Slide style={{ width: '1280px', height: '720px', padding: '60px', background: '#F7F9FC', flexDirection: 'column', position: 'relative' }}>
+    <Text style={{ position: 'absolute', top: 24, right: 60, fontSize: 260, fontWeight: 'bold', color: '#E8EFF8', lineHeight: 1 }}>03</Text>
+
+    <Box style={{ width: '100%', marginTop: 150, flexDirection: 'column' }}>
+        <Text style={{ fontSize: 15, color: '#3D7BD9', letterSpacing: 3 }}>SECTION 03</Text>
+        <Text style={{ fontSize: 48, fontWeight: 'bold', color: '#0E3F8C', marginTop: 16 }}>应用与交付</Text>
+        <Box style={{ width: 72, height: 3, background: '#1E4FA8', marginTop: 24 }} />
+    </Box>
+
+    <Box style={{ flexDirection: 'row', gap: 56, marginTop: 52, width: 940 }}>
+        <Box style={{ width: 260, flexDirection: 'column' }}>
+            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1A2230' }}>3 个数据源</Text>
+            <Text style={{ fontSize: 16, color: '#4A5568', lineHeight: 1.6, marginTop: 10 }}>Hive / MySQL / ClickHouse 同时接入 BI</Text>
+        </Box>
+        <Box style={{ width: 260, flexDirection: 'column' }}>
+            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1A2230' }}>8 张图 + 7 面板</Text>
+            <Text style={{ fontSize: 16, color: '#4A5568', lineHeight: 1.6, marginTop: 10 }}>仪表板与大屏各自成体系，断网可演示</Text>
+        </Box>
+        <Box style={{ width: 260, flexDirection: 'column' }}>
+            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1A2230' }}>7 个服务</Text>
+            <Text style={{ fontSize: 16, color: '#4A5568', lineHeight: 1.6, marginTop: 10 }}>一条命令起全栈，全部 healthy</Text>
+        </Box>
+    </Box>
+</Slide>

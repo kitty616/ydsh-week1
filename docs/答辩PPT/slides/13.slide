@@ -1,0 +1,85 @@
+<Slide style={{ width: '1280px', height: '720px', padding: '60px', background: '#FFFFFF', flexDirection: 'column' }}>
+    <Box style={{ width: '100%', height: 22, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Text style={{ fontSize: 14, color: '#3D7BD9', letterSpacing: 1.5 }}>03 · 应用与交付</Text>
+        <Text style={{ fontSize: 14, color: '#8B97A8' }}>云购生活 · 第 5 周综合答辩</Text>
+    </Box>
+
+    <Text style={{ fontSize: 34, fontWeight: 'bold', color: '#0E3F8C', lineHeight: 1.25, marginTop: 6 }}>一键部署：7 个服务，口令零明文</Text>
+
+    <Box style={{ width: '100%', height: 1, background: '#D6DCE5', marginTop: 10, marginBottom: 18 }} />
+
+    <Box style={{ flex: 1, width: '100%', flexDirection: 'row', gap: 36 }}>
+        <Box style={{ width: 640, flexDirection: 'column' }}>
+            <Table
+                style={{ width: '100%', height: 300 }}
+                defaultTextStyle={{ fontSize: 15, color: '#1A2230', textAlign: 'left' }}
+                defaultCellStyle={{
+                    border: {
+                        left: { width: 1, color: '#E5E7EB' },
+                        right: { width: 1, color: '#E5E7EB' },
+                        top: { width: 1, color: '#E5E7EB' },
+                        bottom: { width: 1, color: '#E5E7EB' },
+                    },
+                    padding: { top: 7, bottom: 7, left: 12, right: 12 },
+                }}
+                cells={[
+                    [
+                        { text: '服务', textStyle: { bold: true, color: '#FFFFFF' }, cellStyle: { background: { color: '#1E4FA8' } } },
+                        { text: '端口', textStyle: { bold: true, color: '#FFFFFF' }, cellStyle: { background: { color: '#1E4FA8' } } },
+                        { text: '职责', textStyle: { bold: true, color: '#FFFFFF' }, cellStyle: { background: { color: '#1E4FA8' } } },
+                    ],
+                    ['mysql', '3306', 'Hive 元数据 + 服务层宽表'],
+                    [
+                        { text: 'hive-metastore', cellStyle: { background: { color: '#F7F9FC' } } },
+                        { text: '9083', cellStyle: { background: { color: '#F7F9FC' } } },
+                        { text: '表结构与分区登记', cellStyle: { background: { color: '#F7F9FC' } } },
+                    ],
+                    ['hive-server', '10000', '四层数仓计算（Tez）'],
+                    [
+                        { text: 'clickhouse', cellStyle: { background: { color: '#F7F9FC' } } },
+                        { text: '8123', cellStyle: { background: { color: '#F7F9FC' } } },
+                        { text: '高并发聚合加速', cellStyle: { background: { color: '#F7F9FC' } } },
+                    ],
+                    ['superset', '8088', 'BI 仪表板'],
+                    [
+                        { text: 'app / api', cellStyle: { background: { color: '#F7F9FC' } } },
+                        { text: '8501 / 8000', cellStyle: { background: { color: '#F7F9FC' } } },
+                        { text: '问答界面 / 大屏取数接口', cellStyle: { background: { color: '#F7F9FC' } } },
+                    ],
+                ]}
+            />
+            <Text style={{ fontSize: 14, color: '#4A5568', lineHeight: 1.5, marginTop: 10 }}>
+                启动顺序靠 depends_on + healthcheck 串联，不靠 sleep 猜时间；容器 up 不等于能干活，所以还要逐端口探测。
+            </Text>
+        </Box>
+
+        <Box style={{ flex: 1, flexDirection: 'column', gap: 12 }}>
+            <Box style={{ padding: '14px 16px', background: '#F0F5FC', border: '1px solid #3D7BD9', borderRadius: 4, flexDirection: 'column' }}>
+                <Text style={{ fontSize: 15, color: '#4A5568' }}>两条命令</Text>
+                <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#0E3F8C', marginTop: 6 }}>cp .env.example .env</Text>
+                <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#0E3F8C', marginTop: 2 }}>docker compose up -d</Text>
+            </Box>
+
+            <Box style={{ padding: '14px 16px', background: '#F7F9FC', border: '1px solid #D6DCE5', borderRadius: 4, flexDirection: 'column' }}>
+                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1A2230' }}>口令零明文</Text>
+                <Text style={{ fontSize: 15, color: '#4A5568', lineHeight: 1.5, marginTop: 6 }}>四个必填项全部用变量缺省即报错的写法，缺变量直接启动失败，不给默认值。</Text>
+            </Box>
+
+            <Box style={{ padding: '14px 16px', background: '#F7F9FC', border: '1px solid #D6DCE5', borderRadius: 4, flexDirection: 'column' }}>
+                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1A2230' }}>验收一条命令</Text>
+                <Text style={{ fontSize: 15, color: '#4A5568', lineHeight: 1.5, marginTop: 6 }}>verify_e2e.py 跑 67 项断言，30 秒出结论：0 失败。</Text>
+            </Box>
+        </Box>
+    </Box>
+
+    <Box style={{ marginTop: 16, padding: '12px 18px', background: '#E8EFF8', borderLeft: '3px solid #1E4FA8' }}>
+        <Text style={{ fontSize: 16, color: '#0E3F8C', lineHeight: 1.45 }}>
+            部署不是「能起来」，是「<b>换一台机器也能起、起来后能自证是对的</b>」——所以把验收写成了脚本，而不是口口相传的步骤。
+        </Text>
+    </Box>
+
+    <Box style={{ width: '100%', height: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+        <Text style={{ fontSize: 14, color: '#8B97A8' }}>云购生活数据仓库项目组</Text>
+        <Text style={{ fontSize: 14, color: '#0E3F8C' }}>13</Text>
+    </Box>
+</Slide>

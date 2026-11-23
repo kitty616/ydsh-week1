@@ -1,0 +1,35 @@
+<Slide style={{ width: '1280px', height: '720px', padding: 0, background: '#0E3F8C', flexDirection: 'column', position: 'relative' }}>
+    <Box style={{ position: 'absolute', top: 0, left: 0, width: 1280, height: 6, background: '#3D7BD9' }} />
+
+    <Box style={{ padding: '0 96px', height: '100%', flexDirection: 'column', justifyContent: 'center' }}>
+        <Text style={{ fontSize: 15, color: '#9FB9E0', letterSpacing: 3 }}>THANKS FOR YOUR TIME</Text>
+
+        <Text style={{ fontSize: 62, fontWeight: 'bold', color: '#FFFFFF', marginTop: 20 }}>谢谢 · 请提问</Text>
+
+        <Box style={{ width: 120, height: 3, background: '#3D7BD9', marginTop: 28 }} />
+
+        <Text style={{ fontSize: 19, color: '#C9D8EF', marginTop: 24, lineHeight: 1.6 }}>
+            完整代码、文档与 67 项联调结果均在仓库中，可一条命令复现。
+        </Text>
+
+        <Box style={{ flexDirection: 'row', gap: 48, marginTop: 36 }}>
+            <Box style={{ flexDirection: 'column', gap: 4 }}>
+                <Text style={{ fontSize: 13, color: '#7E9BC7' }}>GMV 对账</Text>
+                <Text style={{ fontSize: 18, color: '#FFFFFF', fontWeight: 'bold' }}>7 个位置同值</Text>
+            </Box>
+            <Box style={{ flexDirection: 'column', gap: 4 }}>
+                <Text style={{ fontSize: 13, color: '#7E9BC7' }}>联调断言</Text>
+                <Text style={{ fontSize: 18, color: '#FFFFFF', fontWeight: 'bold' }}>67 项 / 0 失败</Text>
+            </Box>
+            <Box style={{ flexDirection: 'column', gap: 4 }}>
+                <Text style={{ fontSize: 13, color: '#7E9BC7' }}>一键部署</Text>
+                <Text style={{ fontSize: 18, color: '#FFFFFF', fontWeight: 'bold' }}>7 服务 / 全 healthy</Text>
+            </Box>
+        </Box>
+    </Box>
+
+    <Box style={{ position: 'absolute', bottom: 44, left: 96, flexDirection: 'row', justifyContent: 'space-between', width: 1088 }}>
+        <Text style={{ fontSize: 14, color: '#7E9BC7' }}>云购生活数据仓库项目组 · 曲欣锋</Text>
+        <Text style={{ fontSize: 14, color: '#7E9BC7' }}>2026-11-22</Text>
+    </Box>
+</Slide>

@@ -1,0 +1,24 @@
+<Slide style={{ width: '1280px', height: '720px', padding: '60px', background: '#F7F9FC', flexDirection: 'column', position: 'relative' }}>
+    <Text style={{ position: 'absolute', top: 24, right: 60, fontSize: 260, fontWeight: 'bold', color: '#E8EFF8', lineHeight: 1 }}>04</Text>
+
+    <Box style={{ width: '100%', marginTop: 150, flexDirection: 'column' }}>
+        <Text style={{ fontSize: 15, color: '#3D7BD9', letterSpacing: 3 }}>SECTION 04</Text>
+        <Text style={{ fontSize: 48, fontWeight: 'bold', color: '#0E3F8C', marginTop: 16 }}>复盘与展望</Text>
+        <Box style={{ width: 72, height: 3, background: '#1E4FA8', marginTop: 24 }} />
+    </Box>
+
+    <Box style={{ flexDirection: 'row', gap: 56, marginTop: 52, width: 940 }}>
+        <Box style={{ width: 260, flexDirection: 'column' }}>
+            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1A2230' }}>3 条教训</Text>
+            <Text style={{ fontSize: 16, color: '#4A5568', lineHeight: 1.6, marginTop: 10 }}>都写在踩过的坑里，不是写在总结里</Text>
+        </Box>
+        <Box style={{ width: 260, flexDirection: 'column' }}>
+            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1A2230' }}>4 项待办</Text>
+            <Text style={{ fontSize: 16, color: '#4A5568', lineHeight: 1.6, marginTop: 10 }}>按影响面排序，逐项有明确验收</Text>
+        </Box>
+        <Box style={{ width: 260, flexDirection: 'column' }}>
+            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1A2230' }}>1 个判断</Text>
+            <Text style={{ fontSize: 16, color: '#4A5568', lineHeight: 1.6, marginTop: 10 }}>能自证的系统，才算真正交付</Text>
+        </Box>
+    </Box>
+</Slide>

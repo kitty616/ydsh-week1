@@ -1,0 +1,40 @@
+<Slide style={{ width: '1280px', height: '720px', padding: 0, background: '#FFFFFF', flexDirection: 'column', position: 'relative' }}>
+    <Box style={{ position: 'absolute', top: 0, left: 0, width: 1280, height: 10, background: '#1E4FA8' }} />
+    <Box style={{ position: 'absolute', top: 10, left: 0, width: 1280, height: 4, background: '#E8EFF8' }} />
+
+    <Box style={{ padding: '0 96px', height: '100%', flexDirection: 'column', justifyContent: 'center' }}>
+        <Text style={{ fontSize: 15, color: '#3D7BD9', letterSpacing: 3 }}>
+            企业项目实战实训 · 综合答辩
+        </Text>
+
+        <Text style={{ fontSize: 56, fontWeight: 'bold', color: '#0E3F8C', lineHeight: 1.22, marginTop: 24, width: 1000 }}>
+            云购生活 · 企业级数据仓库与经营分析可视化系统
+        </Text>
+
+        <Text style={{ fontSize: 20, color: '#4A5568', marginTop: 16, letterSpacing: 0.5 }}>
+            Yundu Life — Enterprise Data Warehouse &amp; Retail Analytics Platform
+        </Text>
+
+        <Box style={{ width: 640, height: 2, background: '#1E4FA8', marginTop: 40 }} />
+
+        <Box style={{ flexDirection: 'row', gap: 56, marginTop: 28 }}>
+            <Box style={{ flexDirection: 'column', gap: 6 }}>
+                <Text style={{ fontSize: 14, color: '#8B97A8' }}>汇报人</Text>
+                <Text style={{ fontSize: 20, color: '#1A2230', fontWeight: 'bold' }}>曲欣锋</Text>
+            </Box>
+            <Box style={{ flexDirection: 'column', gap: 6 }}>
+                <Text style={{ fontSize: 14, color: '#8B97A8' }}>团队</Text>
+                <Text style={{ fontSize: 20, color: '#1A2230', fontWeight: 'bold' }}>云购生活数据仓库项目组</Text>
+            </Box>
+            <Box style={{ flexDirection: 'column', gap: 6 }}>
+                <Text style={{ fontSize: 14, color: '#8B97A8' }}>日期</Text>
+                <Text style={{ fontSize: 20, color: '#1A2230', fontWeight: 'bold' }}>2026-11-22</Text>
+            </Box>
+        </Box>
+    </Box>
+
+    <Box style={{ position: 'absolute', bottom: 48, left: 96, width: 1088, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <Text style={{ fontSize: 14, color: '#8B97A8' }}>数据科学与大数据技术（本科）· 第 5 周 · 项目收官</Text>
+        <Text style={{ fontSize: 14, color: '#8B97A8' }}>10 分钟演示 + 5 分钟问答</Text>
+    </Box>
+</Slide>

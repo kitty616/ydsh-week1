@@ -1,0 +1,72 @@
+<Slide style={{ width: '1280px', height: '720px', padding: '60px', background: '#FFFFFF', flexDirection: 'column' }}>
+    <Box style={{ width: '100%', height: 22, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Text style={{ fontSize: 14, color: '#3D7BD9', letterSpacing: 1.5 }}>02 · 架构与数据</Text>
+        <Text style={{ fontSize: 14, color: '#8B97A8' }}>云购生活 · 第 5 周综合答辩</Text>
+    </Box>
+
+    <Text style={{ fontSize: 34, fontWeight: 'bold', color: '#0E3F8C', lineHeight: 1.25, marginTop: 6 }}>联调抓到的真问题：0.97% 的钱去哪了</Text>
+
+    <Box style={{ width: '100%', height: 1, background: '#D6DCE5', marginTop: 10, marginBottom: 18 }} />
+
+    <Box style={{ flex: 1, width: '100%', flexDirection: 'row', gap: 32 }}>
+        <Box style={{ width: 700, flexDirection: 'column', gap: 12 }}>
+            <Box style={{ flexDirection: 'row', gap: 14, alignItems: 'flex-start', padding: '12px 14px', background: '#F7F9FC', borderLeft: '3px solid #8B97A8' }}>
+                <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#8B97A8', width: 26 }}>01</Text>
+                <Box style={{ flexDirection: 'column', flex: 1 }}>
+                    <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#1A2230' }}>现象：品类汇总对不上总账</Text>
+                    <Text style={{ fontSize: 15, color: '#4A5568', lineHeight: 1.45, marginTop: 4 }}>全站 GMV 36,116,687.06，品类维度只有 35,767,077.49，少 <span style={{ color: '#D9534F', fontWeight: 'bold' }}>349,609.57 元</span></Text>
+                </Box>
+            </Box>
+
+            <Box style={{ flexDirection: 'row', gap: 14, alignItems: 'flex-start', padding: '12px 14px', background: '#F7F9FC', borderLeft: '3px solid #3D7BD9' }}>
+                <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#3D7BD9', width: 26 }}>02</Text>
+                <Box style={{ flexDirection: 'column', flex: 1 }}>
+                    <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#1A2230' }}>定位：不是脏数据，是系统性缺口</Text>
+                    <Text style={{ fontSize: 15, color: '#4A5568', lineHeight: 1.45, marginTop: 4 }}>按天对比，366 天里有 189 天偏小，而且<span style={{ fontWeight: 'bold' }}>每一天都偏小</span>——脏数据只会造成随机偏差</Text>
+                </Box>
+            </Box>
+
+            <Box style={{ flexDirection: 'row', gap: 14, alignItems: 'flex-start', padding: '12px 14px', background: '#FDF4F4', borderLeft: '3px solid #D9534F' }}>
+                <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#D9534F', width: 26 }}>03</Text>
+                <Box style={{ flexDirection: 'column', flex: 1 }}>
+                    <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#1A2230' }}>根因：139 笔订单没有明细行</Text>
+                    <Text style={{ fontSize: 15, color: '#4A5568', lineHeight: 1.45, marginTop: 4 }}>唯一明细单价是负数，整单被清洗剔除；汇总用 inner join 关联明细，把这 139 笔整笔吃掉了</Text>
+                </Box>
+            </Box>
+
+            <Box style={{ flexDirection: 'row', gap: 14, alignItems: 'flex-start', padding: '12px 14px', background: '#F0F5FC', borderLeft: '3px solid #1E4FA8' }}>
+                <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1E4FA8', width: 26 }}>04</Text>
+                <Box style={{ flexDirection: 'column', flex: 1 }}>
+                    <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#0E3F8C' }}>修复：单列「未知品类」，不静默丢弃</Text>
+                    <Text style={{ fontSize: 15, color: '#4A5568', lineHeight: 1.45, marginTop: 4 }}>UNION ALL 补一支把无明细订单归入未知品类，2,927 行 → 3,043 行，合计回到 36,116,687.06</Text>
+                </Box>
+            </Box>
+        </Box>
+
+        <Box style={{ flex: 1, padding: '24px 22px', background: '#0E3F8C', borderRadius: 4, flexDirection: 'column', justifyContent: 'space-between' }}>
+            <Box style={{ flexDirection: 'column' }}>
+                <Text style={{ fontSize: 14, color: '#9FB9E0', letterSpacing: 1 }}>修复后</Text>
+                <Text style={{ fontSize: 34, fontWeight: 'bold', color: '#FFFFFF', marginTop: 10, lineHeight: 1.15 }}>36,116,687.06</Text>
+                <Text style={{ fontSize: 15, color: '#C9D8EF', marginTop: 8 }}>品类合计 = 全站合计，七个位置同值</Text>
+            </Box>
+
+            <Box style={{ flexDirection: 'column' }}>
+                <Box style={{ width: '100%', height: 1, background: '#3D5F96', marginBottom: 14 }} />
+                <Text style={{ fontSize: 15, color: '#E8EFF8', lineHeight: 1.6 }}>
+                    为什么保留「未知品类」而不是直接剔掉：剔掉等于让 0.97% 的生意在报表里不存在。
+                </Text>
+            </Box>
+        </Box>
+    </Box>
+
+    <Box style={{ marginTop: 16, padding: '12px 18px', background: '#E8EFF8', borderLeft: '3px solid #1E4FA8' }}>
+        <Text style={{ fontSize: 16, color: '#0E3F8C', lineHeight: 1.45 }}>
+            这个缺口藏了两周，直到做「品类求和 vs 全站求和」的交叉对账才现形——<b>每一层都能独立求和，才有机会发现它</b>。
+        </Text>
+    </Box>
+
+    <Box style={{ width: '100%', height: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+        <Text style={{ fontSize: 14, color: '#8B97A8' }}>云购生活数据仓库项目组</Text>
+        <Text style={{ fontSize: 14, color: '#0E3F8C' }}>09</Text>
+    </Box>
+</Slide>
