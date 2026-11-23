@@ -213,6 +213,11 @@ services:
       CLICKHOUSE_HOST: clickhouse
       CLICKHOUSE_PORT: "8123"
       CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?请在 .env 中设置 CLICKHOUSE_PASSWORD}
+      # 应用本身只查 Hive，但联调/压测脚本要连 MySQL 与 ClickHouse 做三引擎对账，
+      # 口令同样从 .env 注入，容器里不落明文。
+      MYSQL_HOST: mysql
+      MYSQL_USER: root
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?请在 .env 中设置 MYSQL_ROOT_PASSWORD}
       # 大模型 Key 一律从 .env 注入，镜像里不含任何明文
       ZHIPU_API_KEY: ${ZHIPU_API_KEY:-}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}

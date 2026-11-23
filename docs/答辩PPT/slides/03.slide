@@ -1,0 +1,49 @@
+<Slide style={{ width: '1280px', height: '720px', padding: '60px', background: '#FFFFFF', flexDirection: 'row' }}>
+    <Box style={{ width: 340, height: '100%', background: '#0E3F8C', padding: '40px 32px', flexDirection: 'column', justifyContent: 'space-between' }}>
+        <Box style={{ flexDirection: 'column' }}>
+            <Text style={{ fontSize: 14, color: '#9FB9E0', letterSpacing: 3 }}>CONTENTS</Text>
+            <Text style={{ fontSize: 44, fontWeight: 'bold', color: '#FFFFFF', marginTop: 12 }}>目录</Text>
+            <Box style={{ width: 56, height: 2, background: '#3D7BD9', marginTop: 18 }} />
+        </Box>
+        <Box style={{ flexDirection: 'column', gap: 10 }}>
+            <Text style={{ fontSize: 15, color: '#C9D8EF', lineHeight: 1.6 }}>
+                5 周交付、1 条链路、7 个位置对账一致
+            </Text>
+            <Text style={{ fontSize: 14, color: '#7E9BC7' }}>2026-11-22</Text>
+        </Box>
+    </Box>
+
+    <Box style={{ flex: 1, height: '100%', paddingLeft: 56, flexDirection: 'column', justifyContent: 'center' }}>
+        <Box style={{ flexDirection: 'row', alignItems: 'center', paddingBottom: 22, borderBottom: '1px solid #D6DCE5' }}>
+            <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#1E4FA8', width: 84 }}>01</Text>
+            <Box style={{ flexDirection: 'column', flex: 1 }}>
+                <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#1A2230' }}>业务与目标</Text>
+                <Text style={{ fontSize: 16, color: '#4A5568', marginTop: 6 }}>四个真实困境、一套统一口径、八条验收标准</Text>
+            </Box>
+        </Box>
+
+        <Box style={{ flexDirection: 'row', alignItems: 'center', paddingTop: 22, paddingBottom: 22, borderBottom: '1px solid #D6DCE5' }}>
+            <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#1E4FA8', width: 84 }}>02</Text>
+            <Box style={{ flexDirection: 'column', flex: 1 }}>
+                <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#1A2230' }}>架构与数据</Text>
+                <Text style={{ fontSize: 16, color: '#4A5568', marginTop: 6 }}>四层数仓设计、99.73% 清洗修复率、联调抓到的 0.97% 缺口</Text>
+            </Box>
+        </Box>
+
+        <Box style={{ flexDirection: 'row', alignItems: 'center', paddingTop: 22, paddingBottom: 22, borderBottom: '1px solid #D6DCE5' }}>
+            <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#1E4FA8', width: 84 }}>03</Text>
+            <Box style={{ flexDirection: 'column', flex: 1 }}>
+                <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#1A2230' }}>应用与交付</Text>
+                <Text style={{ fontSize: 16, color: '#4A5568', marginTop: 6 }}>Superset 仪表板、ECharts 大屏、NL2SQL 问答、一键部署</Text>
+            </Box>
+        </Box>
+
+        <Box style={{ flexDirection: 'row', alignItems: 'center', paddingTop: 22 }}>
+            <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#1E4FA8', width: 84 }}>04</Text>
+            <Box style={{ flexDirection: 'column', flex: 1 }}>
+                <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#1A2230' }}>复盘与展望</Text>
+                <Text style={{ fontSize: 16, color: '#4A5568', marginTop: 6 }}>三条教训、四项待办、下一步计划</Text>
+            </Box>
+        </Box>
+    </Box>
+</Slide>

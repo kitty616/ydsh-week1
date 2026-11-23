@@ -1,0 +1,73 @@
+<Slide style={{ width: '1280px', height: '720px', padding: '60px', background: '#FFFFFF', flexDirection: 'column' }}>
+    <Box style={{ width: '100%', height: 22, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Text style={{ fontSize: 14, color: '#3D7BD9', letterSpacing: 1.5 }}>04 · 复盘与展望</Text>
+        <Text style={{ fontSize: 14, color: '#8B97A8' }}>云购生活 · 第 5 周综合答辩</Text>
+    </Box>
+
+    <Text style={{ fontSize: 34, fontWeight: 'bold', color: '#0E3F8C', lineHeight: 1.25, marginTop: 6 }}>三条教训，四项待办</Text>
+
+    <Box style={{ width: '100%', height: 1, background: '#D6DCE5', marginTop: 10, marginBottom: 18 }} />
+
+    <Box style={{ flex: 1, width: '100%', flexDirection: 'row', gap: 36 }}>
+        <Box style={{ width: 660, flexDirection: 'column', gap: 14 }}>
+            <Box style={{ flexDirection: 'row', gap: 14, alignItems: 'flex-start', padding: '14px 16px', background: '#F7F9FC', borderLeft: '3px solid #1E4FA8' }}>
+                <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#1E4FA8', width: 24 }}>1</Text>
+                <Box style={{ flexDirection: 'column', flex: 1 }}>
+                    <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#1A2230' }}>看秒表做优化，等于没做优化</Text>
+                    <Text style={{ fontSize: 15, color: '#4A5568', lineHeight: 1.5, marginTop: 5 }}>1.4 万行数据下，读 1 个分区和读 366 个分区都是毫秒级，Tez 的固定开销把差异全盖住了。判据必须是执行计划。</Text>
+                </Box>
+            </Box>
+
+            <Box style={{ flexDirection: 'row', gap: 14, alignItems: 'flex-start', padding: '14px 16px', background: '#F7F9FC', borderLeft: '3px solid #3D7BD9' }}>
+                <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#3D7BD9', width: 24 }}>2</Text>
+                <Box style={{ flexDirection: 'column', flex: 1 }}>
+                    <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#1A2230' }}>教程里的调优手段，先验一遍再用</Text>
+                    <Text style={{ fontSize: 15, color: '#4A5568', lineHeight: 1.5, marginTop: 5 }}>Hive 4 默认自动 MapJoin，手写 MAPJOIN 提示前后执行计划一模一样——写了等于没写，还容易让人误以为有效。</Text>
+                </Box>
+            </Box>
+
+            <Box style={{ flexDirection: 'row', gap: 14, alignItems: 'flex-start', padding: '14px 16px', background: '#FDF4F4', borderLeft: '3px solid #D9534F' }}>
+                <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#D9534F', width: 24 }}>3</Text>
+                <Box style={{ flexDirection: 'column', flex: 1 }}>
+                    <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#1A2230' }}>不报错的错误，最难发现</Text>
+                    <Text style={{ fontSize: 15, color: '#4A5568', lineHeight: 1.5, marginTop: 5 }}>0.97% 的 GMV 缺口不会抛异常，报表照常出。只有「每个维度都能独立求和」的交叉对账才抓得住它。</Text>
+                </Box>
+            </Box>
+        </Box>
+
+        <Box style={{ flex: 1, flexDirection: 'column' }}>
+            <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#0E3F8C' }}>下一步</Text>
+            <Box style={{ width: 40, height: 2, background: '#1E4FA8', marginTop: 8, marginBottom: 14 }} />
+
+            <Box style={{ flexDirection: 'column', gap: 12 }}>
+                <Box style={{ flexDirection: 'column' }}>
+                    <Text style={{ fontSize: 15, fontWeight: 'bold', color: '#1A2230' }}>① Superset 交叉筛选</Text>
+                    <Text style={{ fontSize: 14, color: '#4A5568', lineHeight: 1.45, marginTop: 2 }}>当前 4.1 版本点击不联动，计划降版本或改自定义图表验证。</Text>
+                </Box>
+                <Box style={{ flexDirection: 'column' }}>
+                    <Text style={{ fontSize: 15, fontWeight: 'bold', color: '#1A2230' }}>② SQL 守卫独立成模块</Text>
+                    <Text style={{ fontSize: 14, color: '#4A5568', lineHeight: 1.45, marginTop: 2 }}>抽成 guard.py 并纳入 CI，让联调脚本能直接断言拦截效果。</Text>
+                </Box>
+                <Box style={{ flexDirection: 'column' }}>
+                    <Text style={{ fontSize: 15, fontWeight: 'bold', color: '#1A2230' }}>③ 未知品类源头治理</Text>
+                    <Text style={{ fontSize: 14, color: '#4A5568', lineHeight: 1.45, marginTop: 2 }}>负价明细应由业务系统拦截，而不是靠数仓兜底。</Text>
+                </Box>
+                <Box style={{ flexDirection: 'column' }}>
+                    <Text style={{ fontSize: 15, fontWeight: 'bold', color: '#1A2230' }}>④ 预测加入节假日特征</Text>
+                    <Text style={{ fontSize: 14, color: '#4A5568', lineHeight: 1.45, marginTop: 2 }}>366 天样本里春节效应明显，值得单独建模再对比。</Text>
+                </Box>
+            </Box>
+        </Box>
+    </Box>
+
+    <Box style={{ marginTop: 16, padding: '12px 18px', background: '#0E3F8C' }}>
+        <Text style={{ fontSize: 17, color: '#FFFFFF', lineHeight: 1.45 }}>
+            这五周最大的收获不是搭起了多少组件，而是学会了<b>给系统装一面能照出自己的镜子</b>——67 项断言就是那面镜子。
+        </Text>
+    </Box>
+
+    <Box style={{ width: '100%', height: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+        <Text style={{ fontSize: 14, color: '#8B97A8' }}>云购生活数据仓库项目组</Text>
+        <Text style={{ fontSize: 14, color: '#0E3F8C' }}>15</Text>
+    </Box>
+</Slide>

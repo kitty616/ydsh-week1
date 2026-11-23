@@ -1,0 +1,73 @@
+<Slide style={{ width: '1280px', height: '720px', padding: '60px', background: '#FFFFFF', flexDirection: 'column' }}>
+    <Box style={{ width: '100%', height: 22, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Text style={{ fontSize: 14, color: '#3D7BD9', letterSpacing: 1.5 }}>01 · 业务与目标</Text>
+        <Text style={{ fontSize: 14, color: '#8B97A8' }}>云购生活 · 第 5 周综合答辩</Text>
+    </Box>
+
+    <Text style={{ fontSize: 34, fontWeight: 'bold', color: '#0E3F8C', lineHeight: 1.25, marginTop: 6 }}>四个困境，一个目标</Text>
+
+    <Box style={{ width: '100%', height: 1, background: '#D6DCE5', marginTop: 10, marginBottom: 18 }} />
+
+    <Box style={{ flex: 1, width: '100%', flexDirection: 'column' }}>
+        <Box style={{ flexDirection: 'row', gap: 40 }}>
+            <Box style={{ width: 540, padding: '22px 24px', background: '#F7F9FC', border: '1px solid #D6DCE5', borderRadius: 4, flexDirection: 'column' }}>
+                <Text style={{ fontSize: 14, color: '#D9534F', letterSpacing: 1 }}>改造前</Text>
+                <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#1A2230', marginTop: 6 }}>四个卡点</Text>
+
+                <Box style={{ flexDirection: 'column', gap: 14, marginTop: 16 }}>
+                    <Box style={{ flexDirection: 'column' }}>
+                        <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#1A2230' }}>口径打架</Text>
+                        <Text style={{ fontSize: 15, color: '#4A5568', lineHeight: 1.5 }}>同一个「销售额」，运营按实付算、商品按标价算，差 17 倍</Text>
+                    </Box>
+                    <Box style={{ flexDirection: 'column' }}>
+                        <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#1A2230' }}>取数靠人</Text>
+                        <Text style={{ fontSize: 15, color: '#4A5568', lineHeight: 1.5 }}>每次要数都要找数据组写 SQL，平均等 1~2 天</Text>
+                    </Box>
+                    <Box style={{ flexDirection: 'column' }}>
+                        <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#1A2230' }}>看板是死的</Text>
+                        <Text style={{ fontSize: 15, color: '#4A5568', lineHeight: 1.5 }}>Excel 截图发群里，看到的永远是上周的数</Text>
+                    </Box>
+                    <Box style={{ flexDirection: 'column' }}>
+                        <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#1A2230' }}>没人对账</Text>
+                        <Text style={{ fontSize: 15, color: '#4A5568', lineHeight: 1.5 }}>报表和明细对不上时，说不清是哪一层出的问题</Text>
+                    </Box>
+                </Box>
+            </Box>
+
+            <Box style={{ width: 540, padding: '22px 24px', background: '#F0F5FC', border: '1px solid #3D7BD9', borderRadius: 4, flexDirection: 'column' }}>
+                <Text style={{ fontSize: 14, color: '#1E4FA8', letterSpacing: 1 }}>改造后</Text>
+                <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#0E3F8C', marginTop: 6 }}>四条能力</Text>
+
+                <Box style={{ flexDirection: 'column', gap: 14, marginTop: 16 }}>
+                    <Box style={{ flexDirection: 'column' }}>
+                        <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#0E3F8C' }}>一个口径</Text>
+                        <Text style={{ fontSize: 15, color: '#4A5568', lineHeight: 1.5 }}>10 个核心 KPI 落表，七个位置同值 36,116,687.06</Text>
+                    </Box>
+                    <Box style={{ flexDirection: 'column' }}>
+                        <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#0E3F8C' }}>自助问数</Text>
+                        <Text style={{ fontSize: 15, color: '#4A5568', lineHeight: 1.5 }}>自然语言提问，4.2 秒生成 SQL 并返回结果</Text>
+                    </Box>
+                    <Box style={{ flexDirection: 'column' }}>
+                        <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#0E3F8C' }}>实时看板</Text>
+                        <Text style={{ fontSize: 15, color: '#4A5568', lineHeight: 1.5 }}>BI、大屏、问答三端直连数仓，刷新即最新</Text>
+                    </Box>
+                    <Box style={{ flexDirection: 'column' }}>
+                        <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#0E3F8C' }}>层层对账</Text>
+                        <Text style={{ fontSize: 15, color: '#4A5568', lineHeight: 1.5 }}>67 项断言 30 秒跑完，偏差能定位到具体表</Text>
+                    </Box>
+                </Box>
+            </Box>
+        </Box>
+
+        <Box style={{ marginTop: 20, padding: '14px 20px', background: '#E8EFF8', borderLeft: '3px solid #1E4FA8' }}>
+            <Text style={{ fontSize: 17, color: '#0E3F8C', lineHeight: 1.5 }}>
+                目标很具体：把「要一个数」从 <span style={{ fontWeight: 'bold' }}>1~2 天</span> 缩短到 <span style={{ fontWeight: 'bold' }}>30 秒内</span>，并且每个数字都能点回到明细行。
+            </Text>
+        </Box>
+    </Box>
+
+    <Box style={{ width: '100%', height: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+        <Text style={{ fontSize: 14, color: '#8B97A8' }}>云购生活数据仓库项目组</Text>
+        <Text style={{ fontSize: 14, color: '#0E3F8C' }}>05</Text>
+    </Box>
+</Slide>
