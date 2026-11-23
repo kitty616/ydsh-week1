@@ -1,0 +1,548 @@
+{
+  "generated_at": "2026-11-23T08:13:08",
+  "duration_sec": 30.6,
+  "summary": {
+    "pass": 64,
+    "fail": 0,
+    "warn": 3,
+    "total": 67
+  },
+  "items": [
+    {
+      "stage": "S1",
+      "item": "`ods_order` 行数",
+      "expected": "15,600",
+      "actual": "15,600",
+      "result": "PASS",
+      "note": "与 CSV 行数一致"
+    },
+    {
+      "stage": "S1",
+      "item": "`ods_order_item` 行数",
+      "expected": "37,549",
+      "actual": "37,549",
+      "result": "PASS",
+      "note": "与 CSV 行数一致"
+    },
+    {
+      "stage": "S1",
+      "item": "`ods_product` 行数",
+      "expected": "600",
+      "actual": "600",
+      "result": "PASS",
+      "note": "与 CSV 行数一致"
+    },
+    {
+      "stage": "S1",
+      "item": "`ods_store` 行数",
+      "expected": "60",
+      "actual": "60",
+      "result": "PASS",
+      "note": "与 CSV 行数一致"
+    },
+    {
+      "stage": "S1",
+      "item": "`ods_user` 行数",
+      "expected": "1,000",
+      "actual": "1,000",
+      "result": "PASS",
+      "note": "与 CSV 行数一致"
+    },
+    {
+      "stage": "S1",
+      "item": "`ods_user_behavior` 行数",
+      "expected": "60,000",
+      "actual": "60,000",
+      "result": "PASS",
+      "note": "与 CSV 行数一致"
+    },
+    {
+      "stage": "S1",
+      "item": "6 张表总行数",
+      "expected": "114,809",
+      "actual": "114,809",
+      "result": "PASS",
+      "note": "114,809 行原样落地"
+    },
+    {
+      "stage": "S1",
+      "item": "ods_order 中非标准日期行数",
+      "expected": "1,902",
+      "actual": "1,902",
+      "result": "PASS",
+      "note": "脏数据仍留在 ODS，说明清洗没有越界写回原始层"
+    },
+    {
+      "stage": "S2",
+      "item": "`dwd_order` 行数",
+      "expected": "14,398",
+      "actual": "14,398",
+      "result": "PASS",
+      "note": "15,600 − 600 重复 − 310 负金额 − 292 超上限"
+    },
+    {
+      "stage": "S2",
+      "item": "`dwd_order_item_clean` 行数",
+      "expected": "34,580",
+      "actual": "34,580",
+      "result": "PASS",
+      "note": "剔除 quantity ≤ 0 的 718 行及孤儿明细"
+    },
+    {
+      "stage": "S2",
+      "item": "`dwd_user_clean` 行数",
+      "expected": "1,000",
+      "actual": "1,000",
+      "result": "PASS",
+      "note": "用户不删行，只做标准化"
+    },
+    {
+      "stage": "S2",
+      "item": "`dwd_product_clean` 行数",
+      "expected": "600",
+      "actual": "600",
+      "result": "PASS",
+      "note": "商品不删行，价格按成本 ×1.2 修正"
+    },
+    {
+      "stage": "S2",
+      "item": "订单主键重复数",
+      "expected": "0",
+      "actual": "0",
+      "result": "PASS",
+      "note": "去重后主键唯一"
+    },
+    {
+      "stage": "S2",
+      "item": "五类脏数据总修复率",
+      "expected": "99.73",
+      "actual": "99.73",
+      "result": "PASS",
+      "note": "70,786/70,979，保留类不计入分母"
+    },
+    {
+      "stage": "S2",
+      "item": "`dwd_order` GMV 合计",
+      "expected": "36,116,687.06",
+      "actual": "36,116,687.06",
+      "result": "PASS",
+      "note": "与第 1~4 周登记值一致"
+    },
+    {
+      "stage": "S3",
+      "item": "`dws_trade_day` 行数",
+      "expected": "366",
+      "actual": "366",
+      "result": "PASS",
+      "note": "与第 3 周登记值一致"
+    },
+    {
+      "stage": "S3",
+      "item": "`dws_trade_week` 行数",
+      "expected": "53",
+      "actual": "53",
+      "result": "PASS",
+      "note": "与第 3 周登记值一致"
+    },
+    {
+      "stage": "S3",
+      "item": "`dws_trade_month` 行数",
+      "expected": "12",
+      "actual": "12",
+      "result": "PASS",
+      "note": "与第 3 周登记值一致"
+    },
+    {
+      "stage": "S3",
+      "item": "`dws_category_day` 行数",
+      "expected": "3,043",
+      "actual": "3,043",
+      "result": "PASS",
+      "note": "2,927 个真实品类组合 + 116 个「未知品类」组合"
+    },
+    {
+      "stage": "S3",
+      "item": "`dws_store_day` 行数",
+      "expected": "10,566",
+      "actual": "10,566",
+      "result": "PASS",
+      "note": "与第 3 周登记值一致"
+    },
+    {
+      "stage": "S3",
+      "item": "`dws_channel_day` 行数",
+      "expected": "1,464",
+      "actual": "1,464",
+      "result": "PASS",
+      "note": "与第 3 周登记值一致"
+    },
+    {
+      "stage": "S3",
+      "item": "`dws_user_stat` 行数",
+      "expected": "1,000",
+      "actual": "1,000",
+      "result": "PASS",
+      "note": "与第 3 周登记值一致"
+    },
+    {
+      "stage": "S3",
+      "item": "`dws_trade_day` GMV 合计",
+      "expected": "36,116,687.06",
+      "actual": "36,116,687.06",
+      "result": "PASS",
+      "note": "与 DWD 明细一致"
+    },
+    {
+      "stage": "S3",
+      "item": "`dws_trade_week` GMV 合计",
+      "expected": "36,116,687.06",
+      "actual": "36,116,687.06",
+      "result": "PASS",
+      "note": "与 DWD 明细一致"
+    },
+    {
+      "stage": "S3",
+      "item": "`dws_trade_month` GMV 合计",
+      "expected": "36,116,687.06",
+      "actual": "36,116,687.06",
+      "result": "PASS",
+      "note": "与 DWD 明细一致"
+    },
+    {
+      "stage": "S3",
+      "item": "`dws_category_day` GMV 合计",
+      "expected": "36,116,687.06",
+      "actual": "36,116,687.06",
+      "result": "PASS",
+      "note": "按品类切分不重不漏"
+    },
+    {
+      "stage": "S3",
+      "item": "`dws_store_day` GMV 合计",
+      "expected": "36,116,687.06",
+      "actual": "36,116,687.06",
+      "result": "PASS",
+      "note": "按门店切分不重不漏"
+    },
+    {
+      "stage": "S3",
+      "item": "`dws_channel_day` GMV 合计",
+      "expected": "36,116,687.06",
+      "actual": "36,116,687.06",
+      "result": "PASS",
+      "note": "按渠道切分不重不漏"
+    },
+    {
+      "stage": "S3",
+      "item": "`dws_trade_day` 订单量合计",
+      "expected": "14,398",
+      "actual": "14,398",
+      "result": "PASS",
+      "note": "日粒度不重不漏"
+    },
+    {
+      "stage": "S4",
+      "item": "KPI_GMV",
+      "expected": "36,116,687.06",
+      "actual": "36,116,687.06",
+      "result": "PASS",
+      "note": "六层同源"
+    },
+    {
+      "stage": "S4",
+      "item": "KPI_ORDER_CNT",
+      "expected": "14,398",
+      "actual": "14,398",
+      "result": "PASS",
+      "note": "COUNT(DISTINCT order_id)"
+    },
+    {
+      "stage": "S4",
+      "item": "KPI_AOV = GMV ÷ 订单量",
+      "expected": "2,508.45",
+      "actual": "2,508.45",
+      "result": "PASS",
+      "note": "派生指标自洽"
+    },
+    {
+      "stage": "S4",
+      "item": "KPI_ORDER_PER_USER = 订单量 ÷ 用户数",
+      "expected": "14.40",
+      "actual": "14.40",
+      "result": "PASS",
+      "note": "派生指标自洽"
+    },
+    {
+      "stage": "S4",
+      "item": "KPI_TOP_CATEGORY_SHARE 与品类表一致",
+      "expected": "0.15",
+      "actual": "0.15",
+      "result": "PASS",
+      "note": "占比分子分母同源"
+    },
+    {
+      "stage": "S4",
+      "item": "`ads_region_sales` GMV 合计",
+      "expected": "36,116,687.06",
+      "actual": "36,116,687.06",
+      "result": "PASS",
+      "note": "按省份切分不重不漏"
+    },
+    {
+      "stage": "S4",
+      "item": "`ads_monthly_trend` GMV 合计",
+      "expected": "36,116,687.06",
+      "actual": "36,116,687.06",
+      "result": "PASS",
+      "note": "12 个月完整覆盖"
+    },
+    {
+      "stage": "S4",
+      "item": "`ads_sales_daily_report` GMV 合计",
+      "expected": "36,116,687.06",
+      "actual": "36,116,687.06",
+      "result": "PASS",
+      "note": "366 天完整覆盖"
+    },
+    {
+      "stage": "S5",
+      "item": "模型 随机森林 的 MAPE 优于基线",
+      "expected": "< 0.1393",
+      "actual": "0.12",
+      "result": "PASS",
+      "note": "基线-近7日均值 0.1393，相对提升 15.4%"
+    },
+    {
+      "stage": "S5",
+      "item": "MAPE 达标",
+      "expected": "< 15%",
+      "actual": "11.79",
+      "result": "PASS",
+      "note": "低于 15% 判据"
+    },
+    {
+      "stage": "S5",
+      "item": "7 天预测条数",
+      "expected": "7",
+      "actual": "7",
+      "result": "PASS",
+      "note": "逐日预测"
+    },
+    {
+      "stage": "S5",
+      "item": "预测均值相对历史均值的偏移",
+      "expected": "< 20%",
+      "actual": "1.50",
+      "result": "PASS",
+      "note": "历史均值 98,679，预测均值 97,203，超出即视为漂移"
+    },
+    {
+      "stage": "S5",
+      "item": "训练样本天数",
+      "expected": "-",
+      "actual": "366",
+      "result": "WARN",
+      "note": "全年 366 天，含春节等节假日"
+    },
+    {
+      "stage": "S6",
+      "item": "问「2024 年 6 月 GMV」返回值",
+      "expected": "2,829,996.31",
+      "actual": "2,829,996.31",
+      "result": "PASS",
+      "note": "模式 大模型，耗时 6.2s"
+    },
+    {
+      "stage": "S6",
+      "item": "问答链路耗时",
+      "expected": "-",
+      "actual": "6.2s",
+      "result": "WARN",
+      "note": "含一次大模型调用（约 5~10s）"
+    },
+    {
+      "stage": "S6",
+      "item": "SQL 守卫模块",
+      "expected": "-",
+      "actual": "未加载",
+      "result": "WARN",
+      "note": "第 3 周以 test_guard.py 单独验证"
+    },
+    {
+      "stage": "S7",
+      "item": "/api/health",
+      "expected": "ok",
+      "actual": "ok",
+      "result": "PASS",
+      "note": "取数服务在线"
+    },
+    {
+      "stage": "S7",
+      "item": "API 返回 GMV",
+      "expected": "36,116,687.06",
+      "actual": "36,116,687.06",
+      "result": "PASS",
+      "note": "与 Hive ADS 一致"
+    },
+    {
+      "stage": "S7",
+      "item": "大屏月度序列条数",
+      "expected": "12",
+      "actual": "12",
+      "result": "PASS",
+      "note": "12 个月"
+    },
+    {
+      "stage": "S7",
+      "item": "大屏月度 GMV 合计",
+      "expected": "36,116,687.06",
+      "actual": "36,116,687.06",
+      "result": "PASS",
+      "note": "分月相加 = 总量"
+    },
+    {
+      "stage": "S7",
+      "item": "大屏品类序列条数",
+      "expected": "8",
+      "actual": "8",
+      "result": "PASS",
+      "note": "Top8 品类"
+    },
+    {
+      "stage": "S7",
+      "item": "大屏省份序列条数",
+      "expected": "15",
+      "actual": "15",
+      "result": "PASS",
+      "note": "15 个省级区域"
+    },
+    {
+      "stage": "S7",
+      "item": "大屏门店排行条数",
+      "expected": "15",
+      "actual": "15",
+      "result": "PASS",
+      "note": "Top15 门店"
+    },
+    {
+      "stage": "S7",
+      "item": "大屏门店散点条数",
+      "expected": "52",
+      "actual": "52",
+      "result": "PASS",
+      "note": "52 家有成交门店"
+    },
+    {
+      "stage": "S7",
+      "item": "大屏 index.html 存在",
+      "expected": "存在",
+      "actual": "存在",
+      "result": "PASS",
+      "note": "1920×1080 固定舞台 + 整体缩放"
+    },
+    {
+      "stage": "S7",
+      "item": "本地 ECharts 库",
+      "expected": "完整",
+      "actual": "完整",
+      "result": "PASS",
+      "note": "断网也能演示"
+    },
+    {
+      "stage": "S8",
+      "item": "MySQL `sales_daily` GMV",
+      "expected": "36,116,687.06",
+      "actual": "36,116,687.06",
+      "result": "PASS",
+      "note": "与 Hive DWS 一致"
+    },
+    {
+      "stage": "S8",
+      "item": "MySQL `sales_daily` 订单量",
+      "expected": "14,398",
+      "actual": "14,398",
+      "result": "PASS",
+      "note": "与 Hive DWS 一致"
+    },
+    {
+      "stage": "S8",
+      "item": "ClickHouse `sales_daily` GMV",
+      "expected": "36,116,687.06",
+      "actual": "36,116,687.06",
+      "result": "PASS",
+      "note": "与 Hive DWS 一致"
+    },
+    {
+      "stage": "S8",
+      "item": "ClickHouse `sales_daily` 订单量",
+      "expected": "14,398",
+      "actual": "14,398",
+      "result": "PASS",
+      "note": "与 Hive DWS 一致"
+    },
+    {
+      "stage": "S8",
+      "item": "ClickHouse 日粒度行数",
+      "expected": "366",
+      "actual": "366",
+      "result": "PASS",
+      "note": "366 天"
+    },
+    {
+      "stage": "S9",
+      "item": "MySQL:3306",
+      "expected": "可连接",
+      "actual": "可连接",
+      "result": "PASS",
+      "note": "1 ms"
+    },
+    {
+      "stage": "S9",
+      "item": "HiveServer2:10000",
+      "expected": "可连接",
+      "actual": "可连接",
+      "result": "PASS",
+      "note": "1 ms"
+    },
+    {
+      "stage": "S9",
+      "item": "ClickHouse:8123",
+      "expected": "可连接",
+      "actual": "可连接",
+      "result": "PASS",
+      "note": "0 ms"
+    },
+    {
+      "stage": "S9",
+      "item": "Superset:8088",
+      "expected": "可连接",
+      "actual": "可连接",
+      "result": "PASS",
+      "note": "0 ms"
+    },
+    {
+      "stage": "S9",
+      "item": "Streamlit:8501",
+      "expected": "可连接",
+      "actual": "可连接",
+      "result": "PASS",
+      "note": "0 ms"
+    },
+    {
+      "stage": "S9",
+      "item": "API:8000",
+      "expected": "可连接",
+      "actual": "可连接",
+      "result": "PASS",
+      "note": "0 ms"
+    },
+    {
+      "stage": "S9",
+      "item": "Superset /health",
+      "expected": "OK",
+      "actual": "OK",
+      "result": "PASS",
+      "note": "Web 服务真正就绪"
+    }
+  ]
+}
