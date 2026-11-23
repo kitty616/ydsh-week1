@@ -1,0 +1,3 @@
+# 统一提交身份：同一人在不同机器上用过两个邮箱，导致贡献统计被拆成两行。
+# mailmap 只影响展示（git shortlog / blame / log），不改写历史提交。
+quxinfeng <kitty616@users.noreply.github.com> <1842147404@qq.com>
