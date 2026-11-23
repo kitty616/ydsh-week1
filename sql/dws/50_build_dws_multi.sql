@@ -133,26 +133,55 @@ COMMENT 'DWS-天×品类销售汇总'
 STORED AS ORC
 TBLPROPERTIES ('orc.compress' = 'SNAPPY');
 
+-- 口径说明（第 5 周联调修正）：
+--   订单表里有 139 笔订单的明细在清洗阶段被全部剔除（唯一明细的 unit_price 为负），
+--   若仍用 inner join 关联明细，这 139 笔合计 349,609.44 元的 GMV 会从品类维度
+--   静默消失——品类汇总 35,767,077.49 与全站 36,116,687.06 对不上，差 0.97%。
+--   处理方式：明细为空的订单归入「未知品类」单独成行。
+--   宁可多一个显式的「未知品类」，也不要让金额凭空少掉。
 INSERT OVERWRITE TABLE ydsh_dws.dws_category_day
-SELECT
-  f.order_date                                                AS dt,
-  a.category,
-  COUNT(DISTINCT a.order_id)                                  AS order_cnt,
-  SUM(a.quantity)                                             AS item_qty,
-  ROUND(SUM(f.pay_amount * a.item_amt / t.order_item_amt), 2) AS gmv
+SELECT dt,
+       category,
+       COUNT(DISTINCT order_id)   AS order_cnt,
+       SUM(item_qty)              AS item_qty,
+       -- 这里不取整：先按分组 ROUND 再相加，3043 个分组会累积出 0.13 元的
+       -- 「舍入漂移」，导致品类汇总与全站 GMV 差几分钱。取整交给展示层，
+       -- 存储层保持可加性（sum(分组) == 总量）。
+       SUM(gmv)                   AS gmv
 FROM (
-  SELECT i.order_id, p.category, i.quantity,
-         i.quantity * i.unit_price * (1 - i.discount) AS item_amt
-  FROM ydsh_dwd.dwd_order_item_clean i
-  JOIN ydsh_dwd.dim_product p ON i.product_id = p.product_id
-) a
-JOIN (
-  SELECT order_id, SUM(quantity * unit_price * (1 - discount)) AS order_item_amt
-  FROM ydsh_dwd.dwd_order_item_clean
-  GROUP BY order_id
-) t ON a.order_id = t.order_id
-JOIN ydsh_dwd.dwd_order f ON a.order_id = f.order_id
-GROUP BY f.order_date, a.category;
+  -- 1) 有有效明细的订单：按「标价 × (1-折扣)」权重把实付金额分摊到品类
+  SELECT f.order_date                                       AS dt,
+         a.category                                         AS category,
+         a.order_id                                         AS order_id,
+         a.quantity                                         AS item_qty,
+         f.pay_amount * a.item_amt / t.order_item_amt        AS gmv
+  FROM (
+    SELECT i.order_id, p.category, i.quantity,
+           i.quantity * i.unit_price * (1 - i.discount) AS item_amt
+    FROM ydsh_dwd.dwd_order_item_clean i
+    JOIN ydsh_dwd.dim_product p ON i.product_id = p.product_id
+  ) a
+  JOIN (
+    SELECT order_id, SUM(quantity * unit_price * (1 - discount)) AS order_item_amt
+    FROM ydsh_dwd.dwd_order_item_clean
+    GROUP BY order_id
+  ) t ON a.order_id = t.order_id
+  JOIN ydsh_dwd.dwd_order f ON a.order_id = f.order_id
+
+  UNION ALL
+
+  -- 2) 明细为空的订单：金额归入「未知品类」，不静默丢弃
+  SELECT o.order_date   AS dt,
+         '未知品类'      AS category,
+         o.order_id     AS order_id,
+         0              AS item_qty,
+         o.pay_amount   AS gmv
+  FROM ydsh_dwd.dwd_order o
+  LEFT JOIN (SELECT DISTINCT order_id FROM ydsh_dwd.dwd_order_item_clean) i
+         ON o.order_id = i.order_id
+  WHERE i.order_id IS NULL
+) u
+GROUP BY dt, category;
 
 -- =============================================================
 -- 五、天 × 门店汇总
