@@ -51,3 +51,6 @@ hive_warehouse/
 # PPT 生成过程的缓存目录
 docs/答辩PPT/.cache/
 docs/答辩PPT/.slidep/
+
+# ===== Office 临时锁文件（打开 Word/PPT 时自动生成，不能入库）=====
+~$*
