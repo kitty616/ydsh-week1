@@ -46,7 +46,38 @@
    mom_rate double  // GMV 环比（小数）,
    gmv_share double  // 占全年 GMV 比重
 
--- ydsh_dws.dws_trade_day（天粒度全站交易汇总，按日期分区表）
+-- ydsh_ads.ads_region_sales（省份销售分布，按用户所在省份汇总，15 个省合计等于全站 GMV）
+   province string  // 省份全称，带「省」后缀（如 广东省、上海市）；过滤用 LIKE '%广东%'，不要写等号精确匹配,
+   order_cnt bigint  // 订单量,
+   user_cnt bigint  // 下单用户数,
+   gmv double  // 成交额（元）,
+   aov double  // 客单价（元/单）,
+   gmv_ratio double  // GMV 占比（百分数，6.89 表示 6.89%）
+
+-- ydsh_ads.ads_channel_sales（渠道销售分布，4 个渠道合计等于全站 GMV）
+   channel_code string  // 渠道编码,
+   channel_name string  // 渠道名称,
+   order_cnt bigint  // 订单量,
+   gmv double  // 成交额（元）,
+   aov double  // 客单价（元/单）,
+   gmv_ratio double  // GMV 占比（百分数）
+
+-- ydsh_ads.ads_store_rank（门店 GMV 排名，**只含前 15 家门店**，不是全量门店）
+   rank_no int  // 排名，1 为最高,
+   store_id string  // 门店编号,
+   store_name string  // 门店名称,
+   province string  // 门店所在省份，带「省/市」后缀,
+   gmv double  // 该门店全年 GMV（元）,
+   order_cnt bigint  // 订单量,
+   aov double  // 客单价（元/单）
+
+-- ydsh_ads.ads_kpi_overview（核心指标宽表，一行一个指标共 8 行，适合「大盘怎么样」这类概览）
+   kpi_name string  // 指标名称,
+   kpi_value double  // 指标值,
+   unit string  // 单位,
+   calc_rule string  // 计算口径说明
+
+-- ydsh_dws.dws_trade_day（天粒度全站交易汇总，按日期分区表；**没有 store_id / province / city**，按城市或门店看销售请用 dws_store_day）
    dt string  // 日期 yyyy-MM-dd（与 order_date 同值）,
    gmv double  // 成交总额,
    order_cnt bigint  // 订单量,
@@ -56,7 +87,7 @@
    cancel_cnt bigint  // 取消订单数,
    aov double  // 客单价
 
--- ydsh_dws.dws_trade_month（月粒度交易汇总）
+-- ydsh_dws.dws_trade_month（月粒度交易汇总，只有 month 一个月度列，没有门店/省份维度）
    month string  // 月份 yyyy-MM,
    gmv double  // 成交总额,
    order_cnt bigint  // 订单量,
@@ -65,7 +96,7 @@
    cancel_cnt bigint  // 取消订单数,
    mom_rate double  // GMV 环比
 
--- ydsh_dws.dws_category_day（天×品类销售汇总，GMV 已按订单实付金额分摊）
+-- ydsh_dws.dws_category_day（天×品类销售汇总，GMV 已按订单实付金额分摊；dt 是 yyyy-MM-dd，筛整月要写 dt LIKE '2024-06%'）
    dt string  // 日期,
    category string  // 一级品类,
    order_cnt bigint  // 关联订单数,
@@ -80,7 +111,7 @@
    user_cnt bigint  // 下单用户数,
    aov double  // 客单价
 
--- ydsh_dws.dws_channel_day（天×渠道销售汇总）
+-- ydsh_dws.dws_channel_day（天×渠道销售汇总，只有 channel_code 一个渠道维度）
    dt string  // 日期,
    channel_code string  // 渠道编码（关联 dim_channel）,
    gmv double  // 成交总额,

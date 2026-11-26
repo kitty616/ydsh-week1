@@ -61,6 +61,8 @@ SYSTEM_PROMPT = """你是云购生活数仓的 Hive SQL 专家。
 2. 严禁 INSERT / UPDATE / DELETE / DROP / ALTER / CREATE / TRUNCATE 等写操作。
 3. 表名必须带库名前缀，例如 ydsh_dws.dws_trade_day，不要写裸表名。
 4. 日期字段是字符串（yyyy-MM-dd 或 yyyy-MM），比较时用字符串即可，不要套 date 函数猜格式。
+   筛整月时看列的类型：dt（yyyy-MM-dd）用 `dt LIKE '2024-06%'`，
+   month（yyyy-MM）用 `month = '2024-06'`。写 `dt = '2024-06'` 会命中 0 行且不报错。
 5. 优先使用 ADS 层的成品指标表；ADS 没有的再往下用 DWS，最后才用 DWD 明细表。
 6. 列名必须原样使用表结构里的英文名（如 rank_no、gmv、gmv_share）。
    `//` 后面是中文说明，**只是解释，不是列名**，绝对不要把中文写进列的位置。
@@ -86,8 +88,47 @@ SYSTEM_PROMPT = """你是云购生活数仓的 Hive SQL 专家。
          WHERE rank_no <= 5 ORDER BY rank_no
      错：SELECT `一级品类`, `该品类全年GMV` ... WHERE `排名` <= 5
    模型经常把注释「排名」当成列名，Hive 会报 Invalid column reference '排名'。
+13. 地域（province / city）只在这些表里：ads_region_sales（按**用户**省份汇总）、
+   ads_store_rank（按**门店**省份，只含 GMV 前 15 家门店）、dim_store、dim_user。
+   所有 dws_ 汇总表（dws_trade_day / dws_trade_month / dws_category_day /
+   dws_store_day / dws_channel_day）都**没有** province / city 列，
+   写 `FROM ydsh_dws.dws_trade_day WHERE province = '广东省'` 一定报 10004。
+   问「某省/某地区销售额」的正确写法（优先用 ADS 成品表）：
+     对：SELECT province, gmv, gmv_ratio FROM ydsh_ads.ads_region_sales
+         WHERE province LIKE '%广东%'
+     错：SELECT SUM(gmv) FROM ydsh_dws.dws_trade_day WHERE province LIKE '%广东%'
+   省份取值带「省/市」后缀（广东省、上海市），一律用 LIKE '%关键字%'，不要用等号。
+   ads_store_rank 只有 15 家门店，不能拿来 SUM 当全省总额。
+14. 用户没提时间范围时，不要自己加日期条件（默认就是全年）。
+   只有问句里出现「某月 / 某年 / 最近 N 天」才加 WHERE，否则会把全年答案缩成一个月。
+15. 按城市看销售必须走 dws_store_day（它有 store_id）JOIN dim_store 取城市名：
+     SELECT s.city, CAST(ROUND(SUM(d.gmv), 2) AS DECIMAL(18,2)) AS gmv
+     FROM ydsh_dws.dws_store_day d
+     JOIN ydsh_dwd.dim_store s ON d.store_id = s.store_id
+     GROUP BY s.city ORDER BY gmv DESC
+   不要 FROM dws_trade_day JOIN dim_store ON …：dws_trade_day 没有 store_id。
 
 只输出 SQL，用 ```sql 代码块包裹。"""
+
+# 选表指南：告诉模型「哪类问题该用哪张表」
+# 为什么单独写一块：表多到 18 张之后，模型会退化成「见汇总表就用 dws_trade_day」，
+# 于是出现「按城市看销售」写成 dws_trade_day JOIN dim_store ON store_id——
+# 而 dws_trade_day 根本没有 store_id，修复一次也未必能想到换成 dws_store_day。
+# 把维度→表的对照关系写死，比让模型自己从 18 张表里推理要稳。
+SELECT_GUIDE = """【选表指南】先按问题里的「维度」选表，不要见汇总表就用 dws_trade_day：
+- 全站总量 / 日趋势 → ads_sales_daily_report、dws_trade_day
+- 月趋势 / 某月 → dws_trade_month、ads_monthly_trend
+- 品类 → ads_category_topn（全年排名）、dws_category_day（按天）
+- 渠道 → ads_channel_sales（4 个渠道，合计 = 全站 GMV）
+- 省份 → ads_region_sales（按用户省份，15 省合计 = 全站 GMV）
+- 城市 / 单店 / 门店经营 → dws_store_day JOIN ydsh_dwd.dim_store ON store_id（要城市名就得 JOIN）
+- 门店排名 → ads_store_rank（只有前 15 家，不能求和当全省）
+- 用户分层 → ads_user_segment
+- 大盘概览 → ads_kpi_overview（宽表）、ads_kpi_core（长表，含口径）
+注意：dws_trade_day / dws_trade_month / dws_category_day / dws_channel_day
+**已经按各自的维度聚合好了**，表里只有那个维度 + 日期，没有 store_id、province、city。
+给它们加门店维度必然报 10004——要么换 dws_store_day，要么换对应的 ADS 表。"""
+
 
 FEWSHOT = [
     {
@@ -97,6 +138,28 @@ FEWSHOT = [
     {
         "q": "销量最高的前 5 个品类",
         "a": "```sql\nSELECT category, gmv, gmv_share\nFROM ydsh_ads.ads_category_topn\nWHERE rank_no <= 5\nORDER BY rank_no\n```",
+    },
+    {
+        # 城市维度必须举一条 JOIN 的例子：实测 glm-4-flash 只看文字规则改不过来，
+        # 连着三次都把 province/city 硬挂在 dws_trade_day 上（temperature=0，每次都一样）。
+        # 弱模型对「示例」的服从度远高于对「规则」的服从度。
+        "q": "每个城市卖了多少",
+        "a": "```sql\nSELECT s.city, CAST(ROUND(SUM(d.gmv), 2) AS DECIMAL(18,2)) AS gmv\nFROM ydsh_dws.dws_store_day d\nJOIN ydsh_dwd.dim_store s ON d.store_id = s.store_id\nGROUP BY s.city\nORDER BY gmv DESC\n```",
+    },
+    {
+        # 省份示例放在最后一条：glm-4-flash 对「紧挨着问题的那条示例」最敏感。
+        # 顺序调过一次（省份在前、城市在后），结果广东省的问题反而被带偏到
+        # dws_trade_day + GROUP BY province——弱模型会把最近的示例当模板套。
+        "q": "广东省的销售额是多少",
+        "a": "```sql\nSELECT province, gmv, gmv_ratio\nFROM ydsh_ads.ads_region_sales\nWHERE province LIKE '%广东%'\n```",
+    },
+    {
+        # 为什么省份要有两条示例：只留「广东省」一条时，模型遇到「按省份看销售额」
+        # 会退回 dws_trade_day（它把「汇总」理解成要 SUM + GROUP BY）。补一条不带
+        # 过滤条件的排名示例，等于告诉它「省份维度的答案本来就在这张表里」。
+        # 实测：单条省份示例 → 广东省这条通过、按省份那条失败；两条都在 → 全通过。
+        "q": "各省份的销售额排名",
+        "a": "```sql\nSELECT province, gmv, gmv_ratio\nFROM ydsh_ads.ads_region_sales\nORDER BY gmv DESC\n```",
     },
 ]
 
@@ -108,7 +171,7 @@ def build_messages(question, schema_txt):
         "content": (
             "可用表结构如下。每行格式为「列名 类型 // 中文说明」：\n"
             "左边的英文名才是列名，// 后面的中文只是解释，不能当列名写进 SQL。\n\n"
-            + schema_txt
+            + SELECT_GUIDE + "\n\n" + schema_txt
         ),
     })
     for ex in FEWSHOT:
@@ -333,6 +396,137 @@ def fix_cn_columns(sql, schema, problems):
     return sql
 
 
+# ----------------------------------------------------------------------
+# 列所属表核对（跨表串列）
+#
+# 起因（2026-11-26 实测）：问「广东省的销售额是多少」，模型输出
+#     SELECT SUM(gmv) AS total_sales FROM ydsh_dws.dws_trade_day
+#     WHERE province LIKE '%广东省%'
+# province 是**真实存在**的列（在 dim_store / ads_region_sales / ads_store_rank 里），
+# 所以前面的「中文列名」检查放行了，表名也在白名单里，一路校验通过；
+# 直到 Hive 编译期才报 10004: Invalid table alias or column reference 'province'。
+#
+# 这类错靠报错信息修不干净：报错只说「province 不存在」，没说「去哪张表找」。
+# 所以静态校验要往前挪一步——列名对、但不在本次引用的表里，就当场拦下，
+# 并把「这一列到底属于哪张表」写进问题里，让自修复有的放矢。
+# ----------------------------------------------------------------------
+SQL_NOISE = {
+    "select", "from", "where", "group", "by", "order", "having", "limit", "as",
+    "and", "or", "not", "in", "is", "null", "like", "between", "case", "when",
+    "then", "else", "end", "distinct", "on", "join", "left", "right", "inner",
+    "outer", "full", "cross", "union", "all", "asc", "desc", "over", "partition",
+    "rows", "range", "unbounded", "preceding", "following", "current", "row",
+    "with", "true", "false", "interval", "cast", "decimal", "int", "bigint",
+    "double", "float", "string", "date", "timestamp", "if", "nullif",
+}
+
+
+def build_column_owner(schema):
+    """列名 -> 拥有这张列的表集合（小写列名作键）"""
+    owner = {}
+    for full, info in schema.items():
+        for c in info.get("columns") or []:
+            n = (c.get("name") or "").lower()
+            if n:
+                owner.setdefault(n, set()).add(full)
+    return owner
+
+
+def check_column_refs(sql, schema, problems):
+    """核对「列是不是属于本次引用的表」，跨表串列当场拦下。
+
+    只抓**确定**的错：该列在数仓里确实存在，但不在 FROM / JOIN 的表里。
+    不在任何表里的标识符（函数名、别名、关键字）一概不管——
+    宁可漏，不可误拦，误拦会让本来正确的 SQL 跑不出去。
+    """
+    owner = build_column_owner(schema)
+
+    refs, tables = {}, []
+    # 别名后面必须排除关键字：`FROM dim_store JOIN dws_trade_day ON ...` 里
+    # JOIN 会被当成 dim_store 的别名吞掉，导致后面那张表根本没进 refs，
+    # 于是 dws_trade_day 的列全被判成「不属于本次查询」——误报比漏报更糟。
+    tbl_re = re.compile(
+        r"(?i)\b(?:from|join)\s+([A-Za-z_][\w.]*)"
+        r"(?:\s+(?:as\s+)?(?!where\b|join\b|on\b|group\b|order\b|having\b|limit\b"
+        r"|union\b|left\b|right\b|inner\b|outer\b|full\b|cross\b)([A-Za-z_]\w*))?"
+    )
+    for m in tbl_re.finditer(sql):
+        tbl, alias = m.group(1), m.group(2)
+        if tbl not in schema:
+            continue
+        tables.append(tbl)
+        refs[tbl.lower()] = tbl
+        refs[tbl.split(".")[-1].lower()] = tbl
+        if alias and alias.lower() not in SQL_NOISE:
+            refs[alias.lower()] = tbl
+    tables = list(dict.fromkeys(tables))
+    if not tables:
+        return
+
+    cols_of = {t: {(c.get("name") or "").lower() for c in schema[t]["columns"]}
+               for t in tables}
+    allowed = set().union(*cols_of.values())
+
+    bad = []          # [(表, 列)]
+    # 1) 带前缀的列：o.pay_amount / s.province / ydsh_dws.dws_trade_day.store_id
+    #    前缀可以是别名、裸表名或「库.表」全名，解析不到就跳过（不猜）
+    for m in re.finditer(r"\b([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\.([A-Za-z_]\w*)\b", sql):
+        pre, col = m.group(1).lower(), m.group(2).lower()
+        t = refs.get(pre) or refs.get(pre.split(".")[-1])
+        if not t or col in SQL_NOISE:
+            continue
+        if col not in cols_of[t]:
+            bad.append((t, col))
+
+    # 2) 裸列名：先把字符串和「前缀.列」整条抹掉，避免拿别名当列名
+    masked = re.sub(r"'[^']*'", "''", sql)
+    masked = re.sub(r"\b[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)+", " ", masked)
+    for m in re.finditer(r"\b([A-Za-z_]\w*)\b", masked):
+        w = m.group(1).lower()
+        if w in allowed or w in SQL_NOISE or w in refs:
+            continue
+        # `SUM(o.pay_amount) gmv` 这种不带 AS 的别名：紧跟在右括号后面就不是列
+        if masked[:m.start()].rstrip().endswith(")"):
+            continue
+        if w in owner:                     # 列确实存在，只是不在这些表里
+            bad.append((None, w))
+
+    # 3) 和字符串字面量做比较的标识符，必须是真实存在的列。
+    #    `WHERE year = '2024'`（ads_monthly_trend 只有 month）就是这一类：
+    #    year 不在任何表里，前两轮都放行，Hive 编译期才报 10004。
+    for m in re.finditer(
+        r"\b([A-Za-z_]\w*)\s*(?:=|<>|!=|<=|>=|<|>|\blike\b|\bin\b|\bbetween\b)\s*'",
+        sql, re.I
+    ):
+        w = m.group(1).lower()
+        if w in SQL_NOISE or w in allowed or w in refs:
+            continue
+        if re.search(rf"(?i)\b{re.escape(w)}\s*\(", sql):   # 函数名，不是列
+            continue
+        bad.append((None, w))
+
+    if not bad:
+        return
+
+    parts = []
+    for t, col in dict.fromkeys(bad):
+        if t:
+            parts.append(f"{col} 不属于 {t}（它只在 {'、'.join(sorted(owner[col]))}）")
+        elif col in owner:
+            parts.append(f"{col} 不属于 {'、'.join(tables)}（它只在 {'、'.join(sorted(owner[col]))}）")
+        else:
+            parts.append(f"{col} 不在任何表里（凭空造的列）")
+    dim_hit = {c for _, c in bad} & {"province", "city", "store_id", "region"}
+    advice = ("。按省份汇总直接用 ydsh_ads.ads_region_sales；按城市 / 门店用 "
+              "ydsh_dws.dws_store_day JOIN ydsh_dwd.dim_store；不要给汇总表加维度列"
+              if dim_hit else
+              "。只能用列出来的真实列名，不要自己造字段")
+    problems.append(
+        "列不在本次查询的表里：" + "；".join(parts) + advice
+        + "。当前表真实列名 → " + table_columns_hint(schema, tables)
+    )
+
+
 def validate(sql, schema):
     """返回 (ok, sql, problems)
 
@@ -359,6 +553,33 @@ def validate(sql, schema):
     #   其余 "x" -> 'x'      （剩下的是字符串字面量，双引号在 Hive 里本就等同单引号）
     s = re.sub(r'(?i)\bas\s+"([^"]*)"', r"AS `\1`", s)
     s = re.sub(r'"([^"]*)"', r"'\1'", s)
+
+    # 日期列与「月份 / 年份」字面量做等值比较 → 永远查不到数据，而且不报错。
+    # 实测（2026-11-26）：dt 存的是 yyyy-MM-dd，模型写 WHERE dt = '2024-06'，
+    # 执行「成功」但返回 0 行，页面上就是一个空表——比报错更难发现。
+    # 这类改写语义唯一（月份字面量对 dt 只能是前缀匹配），不需要让模型重试。
+    s = re.sub(r"(?i)\bdt\s*=\s*'(\d{4}-\d{2})'", r"dt LIKE '\1%'", s)
+    s = re.sub(r"(?i)\bmonth\s*=\s*'(\d{4})'", r"month LIKE '\1-%'", s)
+
+    # 省份 / 城市等值比较 → 前缀匹配。列里存的是「浙江省」，模型常写
+    # province = '浙江'，等值永远不成立，返回空表还不报错。去掉「省/市」后缀
+    # 再用 LIKE 包住，语义不变（省名两字以上不会互相包含）。
+    s = re.sub(
+        r"(?i)\b(province|city)\s*=\s*'([\u4e00-\u9fa5]{2,6}?)(?:省|市|自治区)?'",
+        lambda m: f"{m.group(1)} LIKE '%{m.group(2)}%'",
+        s,
+    )
+
+    # `WHERE year = '2024'` 用在只有 month 列的表上：语义唯一（整年 = month 前缀），
+    # 直接改写。year 不是列，Hive 只会报 10004；而模型对这个错法非常执着——
+    # 规则 11 专门写了「不要造 year」，glm-4-flash 照样每隔几次就写一次，
+    # 说明这类错用 Prompt 治不干净，得在校验层兜住。
+    if re.search(r"(?i)\byear\s*=\s*'?\d{4}'?", s):
+        tabs0 = re.findall(r"(?i)\b(?:from|join)\s+([A-Za-z_][\w.]*)", s)
+        cols0 = {c["name"].lower() for t in tabs0 if t in schema
+                 for c in schema[t]["columns"]}
+        if "year" not in cols0 and "month" in cols0:
+            s = re.sub(r"(?i)\byear\s*=\s*'?(\d{4})'?", r"month LIKE '\1-%'", s)
 
     if DANGEROUS.search(s):
         problems.append("包含写操作关键字，已拦截")
@@ -394,6 +615,9 @@ def validate(sql, schema):
 
     # 列名核对：中文注释不是列名——模型最常见的幻觉，静态校验必须拦
     s = fix_cn_columns(s, schema, problems)
+
+    # 列归属核对：列名是真的、但挂错了表（province 挂在 dws_trade_day 上）
+    check_column_refs(s, schema, problems)
 
     if not re.search(r"\blimit\b", s, re.I):
         s = s.rstrip() + "\nLIMIT 200"
@@ -458,16 +682,16 @@ def rule_based(question):
     prov = re.search(r"(北京|上海|天津|重庆|广东|浙江|江苏|山东|河南|四川|湖北|湖南|陕西|辽宁|福建|安徽)", q)
     if prov:
         p = prov.group(1)
-        return ("SELECT s.province, ROUND(SUM(o.pay_amount), 2) AS gmv, COUNT(DISTINCT o.order_id) AS order_cnt "
-                "FROM ydsh_dwd.dwd_order o "
-                "JOIN ydsh_dwd.dim_store s ON o.store_id = s.store_id "
-                f"WHERE s.province LIKE '{p}%' "
-                "GROUP BY s.province")
+        # 口径用「用户所在省份」的成品表 ads_region_sales，与 ADS 层和大模型模式保持一致。
+        # 早期版本这里 JOIN dim_store 走的是「门店所在省份」，广东省算出来 581,858.32，
+        # 而 ads_region_sales 是 2,254,505.49——两个数都「对」，但口径不同。
+        # 同一句问话，降级模式和模型模式给出两个数，演示现场就是事故，所以这里对齐。
+        return ("SELECT province, CAST(gmv AS DECIMAL(18,2)) AS gmv, gmv_ratio "
+                "FROM ydsh_ads.ads_region_sales "
+                f"WHERE province LIKE '%{p}%'")
     if re.search(r"(省份|地区|区域)", q):
-        return ("SELECT s.province, ROUND(SUM(o.pay_amount), 2) AS gmv "
-                "FROM ydsh_dwd.dwd_order o "
-                "JOIN ydsh_dwd.dim_store s ON o.store_id = s.store_id "
-                "GROUP BY s.province ORDER BY gmv DESC LIMIT 10")
+        return ("SELECT province, CAST(gmv AS DECIMAL(18,2)) AS gmv, gmv_ratio "
+                "FROM ydsh_ads.ads_region_sales ORDER BY gmv DESC")
     return "SELECT metric_code, metric_name, metric_value FROM ydsh_ads.ads_kpi_core ORDER BY metric_code"
 
 

@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-11-23T08:13:08",
-  "duration_sec": 30.6,
+  "generated_at": "2026-11-27T07:28:20",
+  "duration_sec": 34.1,
   "summary": {
     "pass": 64,
     "fail": 0,
@@ -350,13 +350,13 @@
       "expected": "2,829,996.31",
       "actual": "2,829,996.31",
       "result": "PASS",
-      "note": "模式 大模型，耗时 6.2s"
+      "note": "模式 大模型，耗时 6.0s"
     },
     {
       "stage": "S6",
       "item": "问答链路耗时",
       "expected": "-",
-      "actual": "6.2s",
+      "actual": "6.0s",
       "result": "WARN",
       "note": "含一次大模型调用（约 5~10s）"
     },
@@ -502,7 +502,7 @@
       "expected": "可连接",
       "actual": "可连接",
       "result": "PASS",
-      "note": "1 ms"
+      "note": "0 ms"
     },
     {
       "stage": "S9",
