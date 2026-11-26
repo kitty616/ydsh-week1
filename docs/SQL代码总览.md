@@ -164,8 +164,8 @@ bash scripts/run_sql.sh sql/ads/61_build_ads_app.sql
 |---|---|---|
 | `python/load_mysql.py` | 6 张表的 MySQL DDL | `sales_daily` / `monthly` / `category` / `region` / `pay_type` / `store_rank`，服务层用 |
 | `python/load_clickhouse.py` | 4 张 ClickHouse 表 | `sales_daily` / `trade_monthly` / `category_day` / `channel_day`；**写操作必须 POST**，GET 会被强制只读 |
-| `python/export_dashboard_data.py` | 8 条 ADS 查询 | 导出大屏 JSON 快照：KPI、月趋势、日报、品类 TopN、区域、渠道、门店排行 |
-| `python/bench_query.py` | 5 组对比查询 | 分区裁剪实验、三引擎同口径对比（Hive / ClickHouse / MySQL） |
+| `python/export_dashboard_data.py` | 7 条 ADS 查询 | 导出大屏 JSON 快照：KPI、月趋势、日报、品类 TopN、区域、渠道、门店排行 |
+| `python/bench_query.py` | 4 组实验查询 | E1 分区裁剪、E2 小表 Join（MAPJOIN 是否必要）、E3 三引擎同口径（Hive / ClickHouse / MySQL）、E4 并发压测 |
 | `python/nl2sql.py` | 提示词里的 few-shot SQL + 兜底固定 SQL | 5 条模板查询，另含 SQL 白名单校验逻辑 |
 | `python/verify_e2e.py` | 各层核对查询 | 端到端 67 条断言里的取数语句（只读） |
 | `superset/provision.py` | 数据源与图表注册 | 通过 Superset API，不是原生 SQL |
