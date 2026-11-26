@@ -62,8 +62,11 @@ SYSTEM_PROMPT = """你是云购生活数仓的 Hive SQL 专家。
 3. 表名必须带库名前缀，例如 ydsh_dws.dws_trade_day，不要写裸表名。
 4. 日期字段是字符串（yyyy-MM-dd 或 yyyy-MM），比较时用字符串即可，不要套 date 函数猜格式。
 5. 优先使用 ADS 层的成品指标表；ADS 没有的再往下用 DWS，最后才用 DWD 明细表。
-6. 标识符（含中文列别名）用反引号包裹，如 AS `华东GMV`；字符串常量用单引号；
-   禁止使用双引号——Hive 把双引号内容当字符串字面量，写在别名位置会直接语法错误。列名不要加库名。
+6. 列名必须原样使用表结构里的英文名（如 rank_no、gmv、gmv_share）。
+   `//` 后面是中文说明，**只是解释，不是列名**，绝对不要把中文写进列的位置。
+   中文只能出现在 AS 之后做别名，例如 `gmv` AS `成交额`——顺序不能反。
+   标识符用反引号包裹，字符串常量用单引号；禁止使用双引号
+   （Hive 把双引号内容当字符串字面量，写在别名位置会直接语法错误）。列名不要加库名。
 7. 结果默认按业务含义排序（金额降序 / 日期升序），必要时加 LIMIT。
 8. 用户问「销售额 / 成交额 / GMV」时默认指 gmv 字段（实付金额合计）。
 9. 数仓是 2024 年的历史快照。「上周 / 上月 / 今天 / 最近 N 天」这类相对时间，
@@ -76,6 +79,13 @@ SYSTEM_PROMPT = """你是云购生活数仓的 Hive SQL 专家。
    例如 ads_monthly_trend 只有 month（形如 '2024-06'），筛 2024 年要写
    `WHERE month LIKE '2024-%'`，不要凭空造 year / yr / 年份 这类不存在的列。
    这类错误静态校验拦不住，只会在执行期报 10004。
+12. 表结构的每一行是「列名 类型 // 中文说明」。写 SQL 时**从左边的英文名取列**，
+   不要翻译、不要照抄中文说明。举例（ads_category_topn）：
+     问「销量最高的前 5 个品类」
+     对：SELECT category, gmv, gmv_share FROM ydsh_ads.ads_category_topn
+         WHERE rank_no <= 5 ORDER BY rank_no
+     错：SELECT `一级品类`, `该品类全年GMV` ... WHERE `排名` <= 5
+   模型经常把注释「排名」当成列名，Hive 会报 Invalid column reference '排名'。
 
 只输出 SQL，用 ```sql 代码块包裹。"""
 
@@ -93,7 +103,14 @@ FEWSHOT = [
 
 def build_messages(question, schema_txt):
     msgs = [{"role": "system", "content": SYSTEM_PROMPT}]
-    msgs.append({"role": "system", "content": "可用表结构如下：\n" + schema_txt})
+    msgs.append({
+        "role": "system",
+        "content": (
+            "可用表结构如下。每行格式为「列名 类型 // 中文说明」：\n"
+            "左边的英文名才是列名，// 后面的中文只是解释，不能当列名写进 SQL。\n\n"
+            + schema_txt
+        ),
+    })
     for ex in FEWSHOT:
         msgs.append({"role": "user", "content": ex["q"]})
         msgs.append({"role": "assistant", "content": ex["a"]})
@@ -187,6 +204,135 @@ def strip_comments(sql):
     return sql
 
 
+# ----------------------------------------------------------------------
+# 中文列名纠偏
+#
+# 起因（2026-11-26 实测）：用户问「销量最高的前 5 个品类」，模型输出了
+#     SELECT `一级品类`, `该品类全年GMV` FROM `ydsh_ads`.`ads_category_topn`
+#     WHERE `排名` <= 5
+# 这三个中文标识符全部来自 schema 注释（rank_no 的注释是「排名，1 为最高」），
+# 不是真实列名。Hive 编译期报 10004 Invalid column reference，自修复一次
+# 仍改不对——因为报错只说「'排名' 不存在」，没有告诉模型正确列名是什么。
+#
+# 两道处理：
+#   1) 能确定映射的（注释归一化后能对上），直接把中文换成英文列名；
+#   2) 确定不了的，报问题时附上该表真实列名清单，让自修复有的放矢。
+# ----------------------------------------------------------------------
+def _norm_cn(text):
+    """把注释归一化成「模型可能写出来的中文列名」。
+
+    「该品类全年 GMV（元）」 -> 该品类全年GMV   （去括号、去空格）
+    「排名，1 为最高」        -> 排名            （逗号后是解释，不是名字）
+    """
+    t = re.sub(r"[（(][^）)]*[）)]", "", text or "")
+    t = re.split(r"[，,;；。]", t)[0]
+    return re.sub(r"\s+", "", t).strip()
+
+
+def build_cn_alias_map(schema):
+    """中文说明 -> 英文列名。只保留**全局唯一**的映射，避免歧义改错。
+
+    schema 形如 {全名: {"columns": [{"name":..., "comment":...}]}}。
+    同一中文说明对应多个列时（比如 gmv 与 gmv_share 的注释都含「GMV」），
+    直接丢弃——宁可报错让人看，也不能猜。
+    """
+    cand = {}
+    for info in schema.values():
+        for col in info.get("columns") or []:
+            name = col.get("name")
+            cmt = col.get("comment") or ""
+            if not name:
+                continue
+            for key in {_norm_cn(cmt), _norm_cn(cmt.split("，")[0])}:
+                if len(key) < 2 or not re.search(r"[\u4e00-\u9fa5]", key):
+                    continue
+                cand.setdefault(key, set()).add(name)
+    return {k: next(iter(v)) for k, v in cand.items() if len(v) == 1}
+
+
+def match_cn_column(token, alias_map):
+    """中文标识符 -> 列名。先精确匹配，再允许「模型漏写尾缀」的前缀匹配。
+
+    「一级品类」是「一级品类名称」的前缀，模型常省掉「名称」；
+    但前缀命中必须唯一，命中多个就返回 None（不猜）。
+    """
+    key = _norm_cn(token)
+    if key in alias_map:
+        return alias_map[key]
+    if len(key) < 2:
+        return None
+    hits = {v for k, v in alias_map.items() if k.startswith(key)}
+    return next(iter(hits)) if len(hits) == 1 else None
+
+
+def table_columns_hint(schema, tables, limit=12):
+    """给报错信息用的「真实列名」清单，让自修复知道该改成什么。"""
+    parts = []
+    for t in tables:
+        info = schema.get(t) or {}
+        cols = [c.get("name") for c in (info.get("columns") or []) if c.get("name")]
+        if cols:
+            shown = cols[:limit]
+            more = "" if len(cols) <= limit else f" …（共 {len(cols)} 列）"
+            parts.append(f"{t}({', '.join(shown)}{more})")
+    return "；".join(parts)
+
+
+def fix_cn_columns(sql, schema, problems):
+    """把中文标识符换成真实列名；换不掉的记进 problems 并附正确列名。"""
+    alias_map = build_cn_alias_map(schema)
+    tables = [t for t in re.findall(r"\b(?:from|join)\s+([A-Za-z_][\w.]*)", sql, re.I)
+              if t in schema]
+
+    # AS 后面的中文是别名，合法，不能动
+    aliases = set()
+    for a in re.findall(r"(?i)\bas\s+`?([^`\s,]+)`?", sql):
+        aliases.add(a)
+
+    unknown = []
+
+    def _repl(m):
+        token = m.group(1)
+        if not re.search(r"[\u4e00-\u9fa5]", token):
+            return m.group(0)
+        if token in aliases:
+            return m.group(0)
+        real = match_cn_column(token, alias_map)
+        if real:
+            return "`%s`" % real
+        unknown.append(token)
+        return m.group(0)
+
+    sql = re.sub(r"`([^`]+)`", _repl, sql)
+
+    # 没加反引号的中文标识符（`SELECT 排名 FROM ...`），同样要抓
+    # 先把单引号字符串替换成占位符，避免把 WHERE category='一级品类' 误判成列名
+    holder = {}
+    def _mask(m):
+        k = f"__S{len(holder)}__"
+        holder[k] = m.group(0)
+        return k
+    masked = re.sub(r"'[^']*'", _mask, sql)
+    for m in re.finditer(r"[\u4e00-\u9fa5][\u4e00-\u9fa5A-Za-z0-9]*", masked):
+        token = m.group(0)
+        if token in aliases or token in unknown:
+            continue
+        real = match_cn_column(token, alias_map)
+        if real:
+            # 只替换独立出现的 token，且不要在字符串占位符里动
+            sql = re.sub(rf"(?<![`\w]){re.escape(token)}(?![`\w])", "`%s`" % real, sql)
+        else:
+            unknown.append(token)
+
+    if unknown:
+        hint = table_columns_hint(schema, tables)
+        problems.append(
+            "引用了表结构中不存在的列：" + "、".join(dict.fromkeys(unknown))
+            + ("；真实列名 → " + hint if hint else "")
+        )
+    return sql
+
+
 def validate(sql, schema):
     """返回 (ok, sql, problems)
 
@@ -199,6 +345,12 @@ def validate(sql, schema):
 
     if not s:
         return False, s, ["模型没有返回 SQL"]
+
+    # 注释先剥掉。两个原因：
+    #   1) 注释里的中文会被列名检查当成列名，误报；
+    #   2) 注释里出现 "delete / drop" 这类词会触发 DANGEROUS 拦截，
+    #      比如 `-- 不要 delete 数据` 直接把一条正常查询拦死。
+    s = strip_comments(s).strip()
 
     # 引号归一化：Hive 里双引号是字符串字面量，不能当标识符用。
     # 实测模型会把中文别名写成 AS "华东GMV"，语义没毛病但执行必报 ParseException。
@@ -240,6 +392,9 @@ def validate(sql, schema):
     if broken:
         problems.append("库名补全后仍不在白名单：" + ", ".join(broken))
 
+    # 列名核对：中文注释不是列名——模型最常见的幻觉，静态校验必须拦
+    s = fix_cn_columns(s, schema, problems)
+
     if not re.search(r"\blimit\b", s, re.I):
         s = s.rstrip() + "\nLIMIT 200"
 
@@ -254,7 +409,14 @@ def run_sql(sql, limit_rows=50):
     cmd = ["docker", "exec", CONTAINER, "beeline",
            "-u", "jdbc:hive2://localhost:10000",
            "--silent=true", "--outputformat=tsv2", "-e", flat]
-    r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    except FileNotFoundError:
+        # 在 app 容器里跑 CLI 时没有 docker 二进制。页面走的是
+        # hive_client.run_sql_for_nl2sql（pyhive），不会到这里；
+        # 但 CLI 直接调用要给一句能看懂的话，而不是 traceback。
+        return None, ["当前环境没有 docker CLI：容器内请走 pyhive 通道"
+                      "（app.py 已把 run_sql 替换为 hive_client.run_sql_for_nl2sql）"]
     out = [ln for ln in r.stdout.splitlines()
            if ln.strip() and not ln.startswith("SLF4J") and "beeline" not in ln.lower()]
     err = [ln for ln in r.stderr.splitlines() if "SLF4J" not in ln and ln.strip()]
