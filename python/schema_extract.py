@@ -41,7 +41,24 @@ TABLES = [
     ("ydsh_dwd", "dim_product"),
     ("ydsh_dwd", "dim_store"),
     ("ydsh_dwd", "dim_channel"),
+    # 2026-11-27 补的三张维表。加它们的理由不是「越多越好」，而是：
+    #   1) 规则 13 早就写了「province 在 dim_user 里」，可 dim_user 根本没暴露，
+    #      Prompt 自相矛盾——模型照着规则去 JOIN，被白名单拦下；
+    #   2) 问「各支付方式的成交额占比」只能出 PT01/PT02，用户看不懂，
+    #      要么暴露 dim_pay_type，要么这一列白查；
+    #   3) 取消订单同理，OS04 是谁也不知道。
+    # 有中文名的维表都是 2-3 列的小表，代价很小。
+    ("ydsh_dwd", "dim_pay_type"),
+    ("ydsh_dwd", "dim_order_status"),
+    ("ydsh_dwd", "dim_user"),
 ]
+
+# 不暴露给模型的列：只影响 Prompt，不改表结构。
+# dim_user 里的联系方式与分析无关，还平白占 token；user_name 是随机生成的字符串，
+# 也不能拿来分组。剩下的才是分析真正用得上的。
+COLUMN_SKIP = {
+    "dim_user": {"user_name", "email", "email_flag", "phone"},
+}
 
 # 业务语义字典：告诉模型这张表是干什么的、字段的中文含义
 TABLE_META = {
@@ -69,7 +86,8 @@ TABLE_META = {
                            "order_cnt": "关联订单数",
                            "item_qty": "销售件数",
                            "avg_item_price": "件单价（元/件）"}),
-    "ads_user_segment": ("用户价值分层汇总（基于 RFM）",
+    "ads_user_segment": ("用户价值分层汇总（基于 RFM 的价值分层，分层名如「重要价值用户」，"
+                         "**不是会员等级**；问会员等级要用 dim_user GROUP BY member_level_name）",
                          {"user_segment": "用户分层名称，如 重要价值用户",
                           "user_cnt": "该层用户数",
                           "user_share": "用户占比",
@@ -132,13 +150,13 @@ TABLE_META = {
                         {"month": "月份 yyyy-MM", "gmv": "成交总额",
                          "order_cnt": "订单量", "user_cnt": "下单用户数",
                          "aov": "客单价", "cancel_cnt": "取消订单数", "mom_rate": "GMV 环比"}),
-    "dws_category_day": ("天×品类销售汇总，GMV 已按订单实付金额分摊；dt 是 yyyy-MM-dd，筛整月要写 dt LIKE '2024-06%'",
+    "dws_category_day": ("天×品类销售汇总，GMV 已按订单实付金额分摊；dt 是 yyyy-MM-dd，筛整月要写 dt LIKE '2024-06%'。**日粒度**：一个月约 250 行，要「6 月各品类」必须 GROUP BY category 求和，不要 GROUP BY dt",
                          {"dt": "日期", "category": "一级品类",
                           "order_cnt": "关联订单数", "item_qty": "销售件数", "gmv": "分摊后成交金额"}),
-    "dws_store_day": ("天×门店销售汇总",
+    "dws_store_day": ("天×门店销售汇总。**日粒度**：一家店一个月 30 行，问「各门店」要 GROUP BY store_id 求和，不要 GROUP BY dt。汇总时 aov 要重算 SUM(gmv)/SUM(order_cnt)，**不能 SUM(aov)**",
                       {"dt": "日期", "store_id": "门店编号", "gmv": "成交总额",
                        "order_cnt": "订单量", "user_cnt": "下单用户数", "aov": "客单价"}),
-    "dws_channel_day": ("天×渠道销售汇总，只有 channel_code 一个渠道维度",
+    "dws_channel_day": ("天×渠道销售汇总，只有 channel_code 一个渠道维度。**日粒度**：要汇总就 GROUP BY channel_code，不要 GROUP BY dt",
                         {"dt": "日期", "channel_code": "渠道编码（关联 dim_channel）",
                          "gmv": "成交总额", "order_cnt": "订单量",
                          "user_cnt": "下单用户数", "aov": "客单价"}),
@@ -161,6 +179,24 @@ TABLE_META = {
                    "city": "城市全称，同样带后缀"}),
     "dim_channel": ("渠道维度表",
                     {"channel_code": "渠道编码", "channel_name": "渠道名称"}),
+    "dim_pay_type": ("支付方式维度表，2 列。dwd_order.pay_type_code 关联 pay_code 取中文名",
+                     {"pay_code": "支付方式编码，与 dwd_order.pay_type_code 同值",
+                      "pay_name": "支付方式名称，如 微信支付 / 支付宝"}),
+    "dim_order_status": ("订单状态维度表。dwd_order.order_status_code 关联 status_code",
+                         {"status_code": "状态编码，与 dwd_order.order_status_code 同值，如 OS04",
+                          "status_name": "状态名称，如 已取消",
+                          "is_finished": "是否已完成状态，1 是 0 否"}),
+    "dim_user": ("用户维度表。province / city 是**用户**所在地区（不是门店），"
+                 "15 省合计等于全站 GMV，口径与 ads_region_sales 一致",
+                 {"user_id": "用户编号，关联 dwd_order.user_id",
+                  "gender": "性别",
+                  "age": "年龄",
+                  "province": "用户所在省份，带「省/市」后缀，过滤用 LIKE '%广东%'",
+                  "city": "用户所在城市，带后缀",
+                  "region": "用户所在大区",
+                  "register_date": "注册日期 yyyy-MM-dd",
+                  "member_level_code": "会员等级编码",
+                  "member_level_name": "会员等级名称"}),
 }
 
 
@@ -189,6 +225,8 @@ def extract():
                 continue
             name, dtype = parts[0].strip(), parts[1].strip()
             if name.startswith("#") or dtype == "NULL":
+                continue
+            if name in COLUMN_SKIP.get(tbl, ()):
                 continue
             cols.append({"name": name, "type": dtype})
         desc, col_meta = TABLE_META.get(tbl, ("", {}))

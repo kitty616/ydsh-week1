@@ -128,7 +128,7 @@
   "ydsh_ads.ads_user_segment": {
     "table": "ads_user_segment",
     "db": "ydsh_ads",
-    "description": "用户价值分层汇总（基于 RFM）",
+    "description": "用户价值分层汇总（基于 RFM 的价值分层，分层名如「重要价值用户」，**不是会员等级**；问会员等级要用 dim_user GROUP BY member_level_name）",
     "columns": [
       {
         "name": "user_segment",
@@ -449,7 +449,7 @@
   "ydsh_dws.dws_category_day": {
     "table": "dws_category_day",
     "db": "ydsh_dws",
-    "description": "天×品类销售汇总，GMV 已按订单实付金额分摊；dt 是 yyyy-MM-dd，筛整月要写 dt LIKE '2024-06%'",
+    "description": "天×品类销售汇总，GMV 已按订单实付金额分摊；dt 是 yyyy-MM-dd，筛整月要写 dt LIKE '2024-06%'。**日粒度**：一个月约 250 行，要「6 月各品类」必须 GROUP BY category 求和，不要 GROUP BY dt",
     "columns": [
       {
         "name": "dt",
@@ -481,7 +481,7 @@
   "ydsh_dws.dws_store_day": {
     "table": "dws_store_day",
     "db": "ydsh_dws",
-    "description": "天×门店销售汇总",
+    "description": "天×门店销售汇总。**日粒度**：一家店一个月 30 行，问「各门店」要 GROUP BY store_id 求和，不要 GROUP BY dt。汇总时 aov 要重算 SUM(gmv)/SUM(order_cnt)，**不能 SUM(aov)**",
     "columns": [
       {
         "name": "dt",
@@ -518,7 +518,7 @@
   "ydsh_dws.dws_channel_day": {
     "table": "dws_channel_day",
     "db": "ydsh_dws",
-    "description": "天×渠道销售汇总，只有 channel_code 一个渠道维度",
+    "description": "天×渠道销售汇总，只有 channel_code 一个渠道维度。**日粒度**：要汇总就 GROUP BY channel_code，不要 GROUP BY dt",
     "columns": [
       {
         "name": "dt",
@@ -742,6 +742,97 @@
         "name": "channel_name",
         "type": "string",
         "comment": "渠道名称"
+      }
+    ]
+  },
+  "ydsh_dwd.dim_pay_type": {
+    "table": "dim_pay_type",
+    "db": "ydsh_dwd",
+    "description": "支付方式维度表，2 列。dwd_order.pay_type_code 关联 pay_code 取中文名",
+    "columns": [
+      {
+        "name": "pay_code",
+        "type": "string",
+        "comment": "支付方式编码，与 dwd_order.pay_type_code 同值"
+      },
+      {
+        "name": "pay_name",
+        "type": "string",
+        "comment": "支付方式名称，如 微信支付 / 支付宝"
+      }
+    ]
+  },
+  "ydsh_dwd.dim_order_status": {
+    "table": "dim_order_status",
+    "db": "ydsh_dwd",
+    "description": "订单状态维度表。dwd_order.order_status_code 关联 status_code",
+    "columns": [
+      {
+        "name": "status_code",
+        "type": "string",
+        "comment": "状态编码，与 dwd_order.order_status_code 同值，如 OS04"
+      },
+      {
+        "name": "status_name",
+        "type": "string",
+        "comment": "状态名称，如 已取消"
+      },
+      {
+        "name": "is_finished",
+        "type": "int",
+        "comment": "是否已完成状态，1 是 0 否"
+      }
+    ]
+  },
+  "ydsh_dwd.dim_user": {
+    "table": "dim_user",
+    "db": "ydsh_dwd",
+    "description": "用户维度表。province / city 是**用户**所在地区（不是门店），15 省合计等于全站 GMV，口径与 ads_region_sales 一致",
+    "columns": [
+      {
+        "name": "user_id",
+        "type": "string",
+        "comment": "用户编号，关联 dwd_order.user_id"
+      },
+      {
+        "name": "gender",
+        "type": "string",
+        "comment": "性别"
+      },
+      {
+        "name": "age",
+        "type": "int",
+        "comment": "年龄"
+      },
+      {
+        "name": "province",
+        "type": "string",
+        "comment": "用户所在省份，带「省/市」后缀，过滤用 LIKE '%广东%'"
+      },
+      {
+        "name": "city",
+        "type": "string",
+        "comment": "用户所在城市，带后缀"
+      },
+      {
+        "name": "region",
+        "type": "string",
+        "comment": "用户所在大区"
+      },
+      {
+        "name": "register_date",
+        "type": "string",
+        "comment": "注册日期 yyyy-MM-dd"
+      },
+      {
+        "name": "member_level_code",
+        "type": "string",
+        "comment": "会员等级编码"
+      },
+      {
+        "name": "member_level_name",
+        "type": "string",
+        "comment": "会员等级名称"
       }
     ]
   }

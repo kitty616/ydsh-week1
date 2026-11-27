@@ -107,6 +107,47 @@ SYSTEM_PROMPT = """你是云购生活数仓的 Hive SQL 专家。
      JOIN ydsh_dwd.dim_store s ON d.store_id = s.store_id
      GROUP BY s.city ORDER BY gmv DESC
    不要 FROM dws_trade_day JOIN dim_store ON …：dws_trade_day 没有 store_id。
+16. 编码列要 JOIN 维表换成中文名，别把 PT01 / OS04 直接甩给用户：
+     支付方式：dwd_order.pay_type_code = dim_pay_type.pay_code，取 pay_name
+     订单状态：dwd_order.order_status_code = dim_order_status.status_code，取 status_name
+     渠道：dwd_order.channel_code = dim_channel.channel_code，取 channel_name
+   问「占比」时用窗口算，不要分成两条语句：
+     SUM(x) / SUM(SUM(x)) OVER () AS gmv_ratio（可再 ROUND 到 4 位小数）
+17. 问「某省 / 某城市卖了多少」时优先用 ads_region_sales——它按**用户**省份汇总，
+   15 省合计等于全站 GMV，和大屏的省份分布图同一口径。
+   不要用 dwd_order JOIN dim_store 去算省份：dim_store.province 是**门店**所在省份，
+   口径不同，同一个省会算出另一个数。用户明确问「门店所在省 / 某家门店」才走 dim_store。
+   dim_user.province 是用户省份，口径与 ads_region_sales 一致，只在需要用户属性时用。
+18. 问「环比 / 同比 / 涨了多少」时直接用现成的比率列，不要自己写窗口：
+     月度环比 → ads_monthly_trend.mom_rate、dws_trade_month.mom_rate（小数，0.05 = 5%）
+     日环比   → ads_sales_daily_report.dod_rate；7 日移动平均 → ma7_gmv
+   禁止 `LAG(SUM(x), 1) OVER (...)`、`SUM(CASE WHEN ...) OVER (...)` 这类写法：
+   Hive 报 "Failed to breakup Windowing invocation"，窗口函数不能这样套聚合。
+   问「6 月比 5 月」直接查 month IN ('2024-05','2024-06') 的 gmv 与 mom_rate。
+19. 粒度跟着问句走。问「6 月各品类卖了多少」= 按月×品类**汇总**：
+     SELECT category, CAST(ROUND(SUM(gmv), 2) AS DECIMAL(18,2)) AS gmv
+     FROM ydsh_dws.dws_category_day WHERE dt LIKE '2024-06%' GROUP BY category
+   不要写成 SELECT category, gmv（没有 SUM/GROUP BY 就是每天一行，
+   6 月会出两百多行，用户要的是一个品类一行）。
+   只有问「趋势 / 每天 / 按日」时才把 dt 留在结果里并按天分组。
+   同理，问「各门店表现 / 各渠道怎么样 / 各 X 排名」也是按 X 汇总成一行一个 X。
+   日粒度表（dws_store_day 10566 行、dws_category_day 248 行/月）不聚合就是
+   几百行明细，页面只显示前 19 行，看着像一堆随机日期的碎片。
+20. dim_ 开头的都是**维表**，只有描述性字段，**没有** gmv / user_cnt / order_cnt /
+   cancel_cnt 这类汇总列。统计「各 X 有多少」用 COUNT(1) 或 COUNT(DISTINCT 主键)，
+   金额要 SUM 事实表的 pay_amount：
+     对：SELECT member_level_name, COUNT(1) AS user_cnt FROM ydsh_dwd.dim_user
+         GROUP BY member_level_name
+     错：SELECT member_level_name, user_cnt FROM ydsh_dwd.dim_user GROUP BY member_level_name
+21. 汇总日粒度表时，**比率列和均值列不能 SUM**：
+   aov、*_rate、gmv_ratio 都是「率」或「平均」，相加出来是垃圾值。
+   实测把 dws_store_day 按门店 SUM(aov)，得到 948527 元的客单价。
+     对：CAST(ROUND(SUM(d.gmv) / SUM(d.order_cnt), 2) AS DECIMAL(18,2)) AS aov
+     错：SUM(d.aov) AS aov
+   user_cnt 跨天相加会把同一用户重复计数，要精确去重就下沉到 dwd_order
+   用 COUNT(DISTINCT user_id)。
+   金额一律 CAST(ROUND(x, 2) AS DECIMAL(18,2))，否则页面会出现
+   1321107.2400000007 这种浮点尾巴。
 
 只输出 SQL，用 ```sql 代码块包裹。"""
 
@@ -123,7 +164,11 @@ SELECT_GUIDE = """【选表指南】先按问题里的「维度」选表，不�
 - 省份 → ads_region_sales（按用户省份，15 省合计 = 全站 GMV）
 - 城市 / 单店 / 门店经营 → dws_store_day JOIN ydsh_dwd.dim_store ON store_id（要城市名就得 JOIN）
 - 门店排名 → ads_store_rank（只有前 15 家，不能求和当全省）
-- 用户分层 → ads_user_segment
+- 用户分层 → ads_user_segment（基于 RFM 的价值分层，**不是会员等级**）
+- 会员等级分布 → dim_user GROUP BY member_level_name
+- 环比 / 同比 → ads_monthly_trend.mom_rate、dws_trade_month.mom_rate（现成列，不要写窗口）
+- 支付方式 / 订单状态 → dwd_order JOIN dim_pay_type / dim_order_status（编码换中文名）
+- 用户属性（性别 / 年龄 / 会员等级）→ dwd_order JOIN dim_user ON user_id
 - 大盘概览 → ads_kpi_overview（宽表）、ads_kpi_core（长表，含口径）
 注意：dws_trade_day / dws_trade_month / dws_category_day / dws_channel_day
 **已经按各自的维度聚合好了**，表里只有那个维度 + 日期，没有 store_id、province、city。
@@ -145,6 +190,13 @@ FEWSHOT = [
         # 弱模型对「示例」的服从度远高于对「规则」的服从度。
         "q": "每个城市卖了多少",
         "a": "```sql\nSELECT s.city, CAST(ROUND(SUM(d.gmv), 2) AS DECIMAL(18,2)) AS gmv\nFROM ydsh_dws.dws_store_day d\nJOIN ydsh_dwd.dim_store s ON d.store_id = s.store_id\nGROUP BY s.city\nORDER BY gmv DESC\n```",
+    },
+    {
+        # 支付方式示例：2026-11-27 线上问「各支付方式的成交额占比」时，
+        # 模型能算出数，但只给 PT01~PT04，用户根本不知道是什么。
+        # 这条示例同时示范「JOIN 维表取中文名」和「窗口算占比」两件事。
+        "q": "各支付方式的成交额占比",
+        "a": "```sql\nSELECT p.pay_name,\n       CAST(ROUND(SUM(o.pay_amount), 2) AS DECIMAL(18,2)) AS gmv,\n       CAST(ROUND(SUM(o.pay_amount) / SUM(SUM(o.pay_amount)) OVER (), 4) AS DECIMAL(10,4)) AS gmv_ratio\nFROM ydsh_dwd.dwd_order o\nJOIN ydsh_dwd.dim_pay_type p ON o.pay_type_code = p.pay_code\nGROUP BY p.pay_name\nORDER BY gmv DESC\n```",
     },
     {
         # 省份示例放在最后一条：glm-4-flash 对「紧挨着问题的那条示例」最敏感。
@@ -432,6 +484,30 @@ def build_column_owner(schema):
     return owner
 
 
+def collect_aliases(sql):
+    """收集语句里**自己定义**的别名：SELECT ... AS xxx、CTE 名、子查询别名。
+
+    别名在 GROUP BY / ORDER BY / HAVING 里是可以合法引用的，绝不能当
+    「列不在本次查询的表里」拦下。2026-11-27 的线上事故就是这么来的：
+        SELECT pay_type_code, SUM(pay_amount) AS total_gmv,
+               SUM(pay_amount)/SUM(SUM(pay_amount)) OVER () AS gmv_ratio
+        FROM ydsh_dwd.dwd_order GROUP BY pay_type_code ORDER BY gmv_ratio DESC
+    gmv_ratio 是 SELECT 里现定义的别名，Hive 执行完全没问题，校验器却报
+    「gmv_ratio 不属于 dwd_order」——把对的 SQL 拦了，比漏拦更伤。
+
+    注意 CAST(x AS DECIMAL(18,2)) 里的 AS 后面跟的是类型，
+    decimal / int / bigint 这些都在 SQL_NOISE 里，天然被挡掉。
+    先抹掉字符串字面量，避免 'as foo' 这种内容混进来。
+    """
+    body = re.sub(r"'[^']*'", "''", sql)
+    out = set()
+    for m in re.finditer(r"(?i)\bas\s+`?([A-Za-z_]\w*)`?", body):
+        w = m.group(1).lower()
+        if w not in SQL_NOISE:
+            out.add(w)
+    return out
+
+
 def check_column_refs(sql, schema, problems):
     """核对「列是不是属于本次引用的表」，跨表串列当场拦下。
 
@@ -465,7 +541,11 @@ def check_column_refs(sql, schema, problems):
 
     cols_of = {t: {(c.get("name") or "").lower() for c in schema[t]["columns"]}
                for t in tables}
-    allowed = set().union(*cols_of.values())
+    # 语句自己定义的别名一并算作合法标识符：ORDER BY / HAVING 引用别名是
+    # 标准写法，不能当串列拦。少这一行就会把「各支付方式的成交额占比」
+    # 这种正确 SQL 拦在门口（详见 collect_aliases 的注释）。
+    aliases = collect_aliases(sql)
+    allowed = set().union(*cols_of.values()) | aliases
 
     bad = []          # [(表, 列)]
     # 1) 带前缀的列：o.pay_amount / s.province / ydsh_dws.dws_trade_day.store_id
@@ -527,11 +607,41 @@ def check_column_refs(sql, schema, problems):
     )
 
 
-def validate(sql, schema):
+def check_time_scope(question, sql, problems):
+    """问句没提时间，SQL 却自己加了日期过滤 —— 拦。
+
+    实测（2026-11-27）：问「取消了多少订单」，模型第一版是
+    `SELECT SUM(cancel_cnt) FROM dws_trade_day`（全年 2023 单，正确），
+    自修复一轮之后变成 `... WHERE dt LIKE '2024-06%'`（只剩 6 月），
+    数字从 2023 掉到 170，页面不报错、也不提示，用户以为看到的是全年。
+    这类「静默缩水」比报错难查得多——报错至少知道自己错了。
+
+    只拦「问句里完全没有时间词」这一种确定情形；提到年/月/季/周/最近/同比
+    等任何时间语素就放行，交给人看。
+    """
+    if not question:
+        return
+    has_time_word = re.search(
+        r"(年|月|季|周|天|日|最近|近期|近\s*\d|今天|昨天|本周|本月|今年|去年|"
+        r"同期|同比|环比|趋势|上半|下半|季度|Q[1-4]|H[12])", question)
+    if has_time_word:
+        return
+    hit = re.search(
+        r"(?i)\b(dt|month|order_date|order_timestamp)\s*"
+        r"(=|like|between|>=|<=|>|<|\bin\b)", sql)
+    if hit:
+        problems.append(
+            f"问句没有指定时间范围，SQL 却加了 {hit.group(1)} 的过滤条件："
+            "会把全年答案缩成某个月/某天。去掉这个日期条件再重写。"
+        )
+
+
+def validate(sql, schema, question=None):
     """返回 (ok, sql, problems)
 
     schema 传完整结构（全名 → 字段信息），内部自行构建表名索引；
     不要传裸的 set，那样无法判断裸表名属于哪个库。
+    question 可选：传了才会做「问句与 SQL 条件是否一致」的检查。
     """
     problems = []
     s = sql.strip()
@@ -592,14 +702,19 @@ def validate(sql, schema):
         problems.append("包含多条语句")
 
     # 表名白名单：抓 FROM / JOIN 后面的标识符
+    # CTE（WITH a AS (...)）定义的临时表名要先排除：它不是实体表，不在
+    # schema 里，但 FROM a 完全合法。上一版没排，整条 CTE 查询被误拦成
+    # 「引用了白名单外的表」，还跟着报了「库名补全后仍不在白名单」。
+    ctes = {m.group(1).lower() for m in re.finditer(
+        r"(?i)(?:\bwith\b|,)\s*([A-Za-z_]\w*)\s+as\s*\(", s)}
     used = re.findall(r"\b(?:from|join)\s+([A-Za-z_][\w.]*)", s, re.I)
-    unknown = [t for t in used if t not in index]
+    unknown = [t for t in used if t not in index and t.lower() not in ctes]
     if unknown:
         problems.append("引用了白名单外的表：" + ", ".join(unknown))
 
     # 裸表名补全为真实库名；已带库名的不动
     for t in dict.fromkeys(used):
-        if "." in t:
+        if "." in t or t.lower() in ctes:
             continue
         full = index.get(t)
         if not full:
@@ -609,7 +724,7 @@ def validate(sql, schema):
 
     # 复核：改写本身可能制造新错误，改完必须再验一遍
     used_after = re.findall(r"\b(?:from|join)\s+([A-Za-z_][\w.]*)", s, re.I)
-    broken = [t for t in used_after if t not in schema]
+    broken = [t for t in used_after if t not in schema and t.lower() not in ctes]
     if broken:
         problems.append("库名补全后仍不在白名单：" + ", ".join(broken))
 
@@ -618,6 +733,9 @@ def validate(sql, schema):
 
     # 列归属核对：列名是真的、但挂错了表（province 挂在 dws_trade_day 上）
     check_column_refs(s, schema, problems)
+
+    # 问句没提时间却加了日期条件 → 数字会静默缩水，必须拦
+    check_time_scope(question, s, problems)
 
     if not re.search(r"\blimit\b", s, re.I):
         s = s.rstrip() + "\nLIMIT 200"
@@ -711,7 +829,7 @@ def ask(question, schema, env, verbose=True):
         raw = rule_based(question)
 
     sql = extract_sql(raw)
-    ok, sql, problems = validate(sql, schema)
+    ok, sql, problems = validate(sql, schema, question)
 
     if verbose:
         print(f"\n问题：{question}")

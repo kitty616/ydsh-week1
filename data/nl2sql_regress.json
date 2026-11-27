@@ -1,0 +1,272 @@
+[
+  {
+    "group": "A 内置测试集",
+    "q": "2024 年 6 月的总 GMV 是多少？",
+    "ok": true,
+    "rows": 1,
+    "repairs": 0,
+    "sql": "SELECT ROUND(SUM(gmv), 2) AS gmv_june\nFROM ydsh_dws.dws_trade_month\nWHERE month = '2024-06'\nLIMIT 200",
+    "problems": []
+  },
+  {
+    "group": "A 内置测试集",
+    "q": "销量最高的前 5 个品类",
+    "ok": true,
+    "rows": 5,
+    "repairs": 0,
+    "sql": "SELECT category, gmv, gmv_share\nFROM ydsh_ads.ads_category_topn\nWHERE rank_no <= 5\nORDER BY rank_no\nLIMIT 200",
+    "problems": []
+  },
+  {
+    "group": "A 内置测试集",
+    "q": "用户价值分层结构是什么样的",
+    "ok": true,
+    "rows": 5,
+    "repairs": 0,
+    "sql": "SELECT user_segment, user_cnt, gmv, gmv_share, avg_gmv, avg_order_cnt\nFROM ydsh_ads.ads_user_segment\nORDER BY user_cnt DESC\nLIMIT 200",
+    "problems": []
+  },
+  {
+    "group": "A 内置测试集",
+    "q": "列出所有核心 KPI 指标",
+    "ok": true,
+    "rows": 10,
+    "repairs": 0,
+    "sql": "SELECT metric_code, metric_name, metric_value, unit, calc_rule\nFROM ydsh_ads.ads_kpi_core\nLIMIT 200",
+    "problems": []
+  },
+  {
+    "group": "A 内置测试集",
+    "q": "2024 年每个月的 GMV 趋势",
+    "ok": true,
+    "rows": 12,
+    "repairs": 0,
+    "sql": "SELECT month, gmv, mom_rate\nFROM ydsh_ads.ads_monthly_trend\nWHERE month LIKE '2024-%'\nORDER BY month_seq\nLIMIT 200",
+    "problems": []
+  },
+  {
+    "group": "A 内置测试集",
+    "q": "广东省的销售额是多少",
+    "ok": true,
+    "rows": 1,
+    "repairs": 0,
+    "sql": "SELECT province, gmv, gmv_ratio\nFROM ydsh_ads.ads_region_sales\nWHERE province LIKE '%广东%'\nLIMIT 200",
+    "problems": []
+  },
+  {
+    "group": "B 地域",
+    "q": "哪个省份卖得最好",
+    "ok": true,
+    "rows": 1,
+    "repairs": 0,
+    "sql": "SELECT province, gmv, gmv_ratio\nFROM ydsh_ads.ads_region_sales\nORDER BY gmv DESC\nLIMIT 1",
+    "problems": []
+  },
+  {
+    "group": "B 地域",
+    "q": "按省份看销售额",
+    "ok": true,
+    "rows": 15,
+    "repairs": 0,
+    "sql": "SELECT province, gmv, gmv_ratio\nFROM ydsh_ads.ads_region_sales\nORDER BY gmv DESC\nLIMIT 200",
+    "problems": []
+  },
+  {
+    "group": "B 地域",
+    "q": "每个城市卖了多少",
+    "ok": true,
+    "rows": 19,
+    "repairs": 0,
+    "sql": "SELECT s.city, CAST(ROUND(SUM(d.gmv), 2) AS DECIMAL(18,2)) AS gmv\nFROM ydsh_dws.dws_store_day d\nJOIN ydsh_dwd.dim_store s ON d.store_id = s.store_id\nGROUP BY s.city\nORDER BY gmv DESC\nLIMIT 200",
+    "problems": []
+  },
+  {
+    "group": "B 地域",
+    "q": "广东省有多少家门店进了前 15",
+    "ok": true,
+    "rows": 1,
+    "repairs": 0,
+    "sql": "SELECT COUNT(*) AS store_count\nFROM ydsh_ads.ads_store_rank\nWHERE province LIKE '%广东%'\nLIMIT 200",
+    "problems": []
+  },
+  {
+    "group": "B 地域",
+    "q": "浙江省的 GMV 是多少",
+    "ok": true,
+    "rows": 1,
+    "repairs": 0,
+    "sql": "SELECT province, gmv\nFROM ydsh_ads.ads_region_sales\nWHERE province LIKE '%浙江%'\nLIMIT 200",
+    "problems": []
+  },
+  {
+    "group": "B 地域",
+    "q": "2024 年 3 月的订单量是多少",
+    "ok": true,
+    "rows": 1,
+    "repairs": 0,
+    "sql": "SELECT order_cnt\nFROM ydsh_dws.dws_trade_month\nWHERE month = '2024-03'\nLIMIT 200",
+    "problems": []
+  },
+  {
+    "group": "C 随机问法",
+    "q": "帮我看看哪个品类最赚钱",
+    "ok": true,
+    "rows": 1,
+    "repairs": 0,
+    "sql": "SELECT category, gmv, gmv_share\nFROM ydsh_ads.ads_category_topn\nWHERE rank_no = 1\nLIMIT 200",
+    "problems": []
+  },
+  {
+    "group": "C 随机问法",
+    "q": "6 月份比 5 月份 GMV 涨了多少",
+    "ok": true,
+    "rows": 1,
+    "repairs": 0,
+    "sql": "SELECT ROUND((SUM(CASE WHEN month = '2024-06' THEN gmv ELSE 0 END) - \n              SUM(CASE WHEN month = '2024-05' THEN gmv ELSE 0 END)) / \n              SUM(CASE WHEN month = '2024-05' THEN gmv ELSE 0 END) * 100, 2) AS growth_rate\nFROM ydsh_dws.dws_trade_month\nWHERE month IN ('2024-06', '2024-05')\nLIMIT 200",
+    "problems": []
+  },
+  {
+    "group": "C 随机问法",
+    "q": "门店经营情况怎么样",
+    "ok": true,
+    "rows": 19,
+    "repairs": 1,
+    "sql": "SELECT s.store_name, SUM(d.gmv) AS gmv, SUM(d.order_cnt) AS order_cnt, SUM(d.user_cnt) AS user_cnt, CAST(ROUND(SUM(d.gmv) / SUM(d.order_cnt), 2) AS DECIMAL(18,2)) AS aov\nFROM ydsh_dws.dws_store_day d\nJOIN ydsh_dwd.dim_store s ON d.store_id = s.store_id\nGROUP BY s.store_name\nORDER BY gmv DESC\nLIMIT 200",
+    "problems": []
+  },
+  {
+    "group": "C 随机问法",
+    "q": "2024 年 12 月的销售额是多少",
+    "ok": true,
+    "rows": 1,
+    "repairs": 0,
+    "sql": "SELECT ROUND(SUM(gmv), 2) AS gmv_december\nFROM ydsh_dws.dws_trade_month\nWHERE month = '2024-12'\nLIMIT 200",
+    "problems": []
+  },
+  {
+    "group": "C 随机问法",
+    "q": "客单价最高的月份是哪个月",
+    "ok": true,
+    "rows": 1,
+    "repairs": 0,
+    "sql": "SELECT month, aov\nFROM ydsh_dws.dws_trade_month\nORDER BY aov DESC\nLIMIT 1",
+    "problems": []
+  },
+  {
+    "group": "C 随机问法",
+    "q": "各渠道的订单量",
+    "ok": true,
+    "rows": 4,
+    "repairs": 0,
+    "sql": "SELECT channel_name, order_cnt\nFROM ydsh_ads.ads_channel_sales\nORDER BY order_cnt DESC\nLIMIT 200",
+    "problems": []
+  },
+  {
+    "group": "D 维表/本次事故",
+    "q": "各支付方式的成交额占比",
+    "ok": true,
+    "rows": 4,
+    "repairs": 0,
+    "sql": "SELECT p.pay_name,\n       CAST(ROUND(SUM(o.pay_amount), 2) AS DECIMAL(18,2)) AS gmv,\n       CAST(ROUND(SUM(o.pay_amount) / SUM(SUM(o.pay_amount)) OVER (), 4) AS DECIMAL(10,4)) AS gmv_ratio\nFROM ydsh_dwd.dwd_order o\nJOIN ydsh_dwd.dim_pay_type p ON o.pay_type_code = p.pay_code\nGROUP BY p.pay_name\nORDER BY gmv DESC\nLIMIT 200",
+    "problems": []
+  },
+  {
+    "group": "D 维表/本次事故",
+    "q": "支付方式有哪些",
+    "ok": true,
+    "rows": 5,
+    "repairs": 0,
+    "sql": "SELECT pay_name\nFROM ydsh_dwd.dim_pay_type\nLIMIT 200",
+    "problems": []
+  },
+  {
+    "group": "D 维表/本次事故",
+    "q": "取消了多少订单",
+    "ok": true,
+    "rows": 1,
+    "repairs": 1,
+    "sql": "SELECT SUM(cancel_cnt) AS total_cancelled_orders\nFROM ydsh_dws.dws_trade_day\nLIMIT 200",
+    "problems": []
+  },
+  {
+    "group": "D 维表/本次事故",
+    "q": "各订单状态的订单量",
+    "ok": true,
+    "rows": 5,
+    "repairs": 0,
+    "sql": "SELECT os.status_name,\n       COUNT(1) AS order_cnt\nFROM ydsh_dwd.dwd_order o\nJOIN ydsh_dwd.dim_order_status os ON o.order_status_code = os.status_code\nGROUP BY os.status_name\nORDER BY order_cnt DESC\nLIMIT 200",
+    "problems": []
+  },
+  {
+    "group": "D 维表/本次事故",
+    "q": "男女用户各贡献多少 GMV",
+    "ok": true,
+    "rows": 3,
+    "repairs": 0,
+    "sql": "SELECT u.gender, CAST(ROUND(SUM(o.pay_amount), 2) AS DECIMAL(18,2)) AS gmv\nFROM ydsh_dwd.dwd_order o\nJOIN ydsh_dwd.dim_user u ON o.user_id = u.user_id\nGROUP BY u.gender\nORDER BY gmv DESC\nLIMIT 200",
+    "problems": []
+  },
+  {
+    "group": "D 维表/本次事故",
+    "q": "各会员等级的用户数",
+    "ok": true,
+    "rows": 4,
+    "repairs": 0,
+    "sql": "SELECT member_level_name, COUNT(1) AS user_cnt\nFROM ydsh_dwd.dim_user\nGROUP BY member_level_name\nORDER BY user_cnt DESC\nLIMIT 200",
+    "problems": []
+  },
+  {
+    "group": "E 边界",
+    "q": "渠道销售占比",
+    "ok": true,
+    "rows": 4,
+    "repairs": 0,
+    "sql": "SELECT channel_name, gmv, gmv_ratio\nFROM ydsh_ads.ads_channel_sales\nORDER BY gmv DESC\nLIMIT 200",
+    "problems": []
+  },
+  {
+    "group": "E 边界",
+    "q": "2024 年 6 月各品类卖了多少钱",
+    "ok": true,
+    "rows": 9,
+    "repairs": 0,
+    "sql": "SELECT category, CAST(ROUND(SUM(gmv), 2) AS DECIMAL(18,2)) AS gmv\nFROM ydsh_dws.dws_category_day\nWHERE dt LIKE '2024-06%'\nGROUP BY category\nORDER BY gmv DESC\nLIMIT 200",
+    "problems": []
+  },
+  {
+    "group": "E 边界",
+    "q": "门店排名前 5",
+    "ok": true,
+    "rows": 5,
+    "repairs": 0,
+    "sql": "SELECT rank_no, store_id, store_name, province, gmv, order_cnt, aov\nFROM ydsh_ads.ads_store_rank\nWHERE rank_no <= 5\nORDER BY rank_no\nLIMIT 200",
+    "problems": []
+  },
+  {
+    "group": "E 边界",
+    "q": "6 月的客单价",
+    "ok": true,
+    "rows": 1,
+    "repairs": 0,
+    "sql": "SELECT aov\nFROM ydsh_dws.dws_trade_month\nWHERE month = '2024-06'\nLIMIT 200",
+    "problems": []
+  },
+  {
+    "group": "E 边界",
+    "q": "有多少用户下单",
+    "ok": true,
+    "rows": 1,
+    "repairs": 0,
+    "sql": "SELECT COUNT(DISTINCT user_id) AS user_cnt\nFROM ydsh_dwd.dwd_order\nLIMIT 200",
+    "problems": []
+  },
+  {
+    "group": "E 边界",
+    "q": "2024 年第一季度 GMV",
+    "ok": true,
+    "rows": 1,
+    "repairs": 0,
+    "sql": "SELECT ROUND(SUM(gmv), 2) AS gmv_q1\nFROM ydsh_dws.dws_trade_month\nWHERE month IN ('2024-01', '2024-02', '2024-03')\nLIMIT 200",
+    "problems": []
+  }
+]

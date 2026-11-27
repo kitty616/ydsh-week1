@@ -111,8 +111,27 @@ def run_sql_for_nl2sql(sql: str, limit_rows: int = 50):
 
     out = ["\t".join(str(c) for c in cols)]
     for r in rows[:limit_rows]:
-        out.append("\t".join("" if v is None else str(v) for v in r))
+        out.append("\t".join(_fmt(v) for v in r))
     return out, []
+
+
+def _fmt(v) -> str:
+    """数值展示：去掉浮点尾巴，但不改数值本身。
+
+    DWS 的 gmv 是「订单实付金额按品类分摊」算出来的，本身带浮点误差，
+    SUM 之后会累积成 1321107.2400000007 这种一串。这不是算错，是 double 的
+    二进制表示问题；直接 str() 会原样带到页面上，看着像 bug。
+    只对 float 做一次 6 位小数归整（金额到分、比率到 6 位都够），
+    整数和小数位很短的数不动，避免把 0.2677 变成 0.27。
+    """
+    if v is None:
+        return ""
+    if isinstance(v, float):
+        r = round(v, 6)
+        if r == int(r) and abs(r) < 1e15:
+            return str(int(r))
+        return f"{r:.6f}".rstrip("0").rstrip(".")
+    return str(v)
 
 
 def health() -> tuple[bool, str]:

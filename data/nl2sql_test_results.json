@@ -30,16 +30,16 @@
   {
     "question": "用户价值分层结构是什么样的",
     "mode": "大模型",
-    "sql": "SELECT user_segment, user_cnt, user_share, gmv, gmv_share, avg_gmv, avg_order_cnt\nFROM ydsh_ads.ads_user_segment\nORDER BY user_share DESC\nLIMIT 200",
+    "sql": "SELECT user_segment, user_cnt, gmv, gmv_share, avg_gmv, avg_order_cnt\nFROM ydsh_ads.ads_user_segment\nORDER BY user_cnt DESC\nLIMIT 200",
     "ok": true,
     "problems": [],
     "rows": [
-      "user_segment\tuser_cnt\tuser_share\tgmv\tgmv_share\tavg_gmv\tavg_order_cnt",
-      "一般价值用户\t324\t0.324\t11210839.41\t0.3104\t34601.36\t13.81",
-      "低价值用户\t294\t0.294\t6980054.4\t0.1933\t23741.68\t10.2",
-      "重要价值用户\t235\t0.235\t11838200.51\t0.3278\t50375.32\t19.51",
-      "高价值低频用户\t98\t0.098\t4303665.23\t0.1192\t43914.95\t14.93",
-      "高频潜力用户\t49\t0.049\t1783927.51\t0.0494\t36406.68\t17.92"
+      "user_segment\tuser_cnt\tgmv\tgmv_share\tavg_gmv\tavg_order_cnt",
+      "一般价值用户\t324\t11210839.41\t0.3104\t34601.36\t13.81",
+      "低价值用户\t294\t6980054.4\t0.1933\t23741.68\t10.2",
+      "重要价值用户\t235\t11838200.51\t0.3278\t50375.32\t19.51",
+      "高价值低频用户\t98\t4303665.23\t0.1192\t43914.95\t14.93",
+      "高频潜力用户\t49\t1783927.51\t0.0494\t36406.68\t17.92"
     ],
     "llm_error": null
   },
@@ -52,13 +52,13 @@
     "rows": [
       "metric_code\tmetric_name\tmetric_value\tunit\tcalc_rule",
       "KPI_CANCEL_RATE\t订单取消率\t0.1405\t比率\t状态为「已取消」(OS04) 的订单数 ÷ 订单量",
-      "KPI_REPURCHASE_RATE\t复购率\t1.0\t比率\t下单次数 ≥ 2 的用户数 ÷ 下单用户数",
+      "KPI_REPURCHASE_RATE\t复购率\t1\t比率\t下单次数 ≥ 2 的用户数 ÷ 下单用户数",
       "KPI_DISCOUNT_RATE\t整体折扣率\t0.1177\t比率\t优惠金额 ÷（实付金额 + 优惠金额），衡量让利力度",
       "KPI_GMV\tGMV 成交总额\t36116687.06\t元\t所有有效订单实付金额之和（含后续取消单，取消单另计取消率）",
       "KPI_TOP_CATEGORY_SHARE\t第一大品类 GMV 占比\t0.1495\t比率\tGMV 最高品类的成交额 ÷ 全站 GMV",
-      "KPI_ACTIVE_USER\t活跃用户数\t1000.0\t人\t观察期内有下单行为的去重用户数",
-      "KPI_ONCE_BUYER_RATIO\t单次购买用户占比\t0.0\t比率\t仅下单 1 次的用户数 ÷ 下单用户数",
-      "KPI_ORDER_CNT\t订单量\t14398.0\t单\t去重订单数 COUNT(DISTINCT order_id)",
+      "KPI_ACTIVE_USER\t活跃用户数\t1000\t人\t观察期内有下单行为的去重用户数",
+      "KPI_ONCE_BUYER_RATIO\t单次购买用户占比\t0\t比率\t仅下单 1 次的用户数 ÷ 下单用户数",
+      "KPI_ORDER_CNT\t订单量\t14398\t单\t去重订单数 COUNT(DISTINCT order_id)",
       "KPI_AOV\t客单价 AOV\t2508.45\t元/单\tGMV ÷ 订单量",
       "KPI_ORDER_PER_USER\t人均下单次数\t14.4\t次/人\t订单量 ÷ 下单用户数"
     ],
@@ -90,12 +90,12 @@
   {
     "question": "广东省的销售额是多少",
     "mode": "大模型",
-    "sql": "SELECT gmv\nFROM ydsh_ads.ads_region_sales\nWHERE province LIKE '%广东%'\nLIMIT 200",
+    "sql": "SELECT province, gmv, gmv_ratio\nFROM ydsh_ads.ads_region_sales\nWHERE province LIKE '%广东%'\nLIMIT 200",
     "ok": true,
     "problems": [],
     "rows": [
-      "gmv",
-      "2254505.49"
+      "province\tgmv\tgmv_ratio",
+      "广东省\t2254505.49\t6.24"
     ],
     "llm_error": null
   }

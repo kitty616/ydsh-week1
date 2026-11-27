@@ -178,7 +178,7 @@ def ask_with_repair(question: str, schema: dict, env: dict, max_retry: int = 1) 
             break
 
         sql = nl2sql.extract_sql(raw)
-        ok, sql, problems = nl2sql.validate(sql, schema)
+        ok, sql, problems = nl2sql.validate(sql, schema, question)
         if not ok:
             r = {**r, "sql": sql, "ok": False, "problems": problems,
                  "repairs": r["repairs"] + 1}

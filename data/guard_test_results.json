@@ -1,6 +1,6 @@
 {
-  "passed": 17,
-  "total": 17,
+  "passed": 35,
+  "total": 35,
   "detail": [
     {
       "case": "正常查询（带库名）",
@@ -172,6 +172,122 @@
       "rewrite_ok": true,
       "problems": [],
       "sql_after": "SELECT province FROM ydsh_dwd.dim_store WHERE province LIKE '%广东%'\nLIMIT 200"
+    },
+    {
+      "case": "正例：窗口算占比 + ORDER BY 引用别名",
+      "expect": true,
+      "actual": true,
+      "expect_sql": null,
+      "rewrite_ok": true,
+      "problems": [],
+      "sql_after": "SELECT pay_type_code, SUM(pay_amount) AS total_gmv, SUM(pay_amount) / SUM(SUM(pay_amount)) OVER () AS gmv_ratio\nFROM ydsh_dwd.dwd_order\nGROUP BY pay_type_code\nORDER BY gmv_ratio DESC\nLIMIT 200"
+    },
+    {
+      "case": "正例：JOIN 维表把编码换中文名",
+      "expect": true,
+      "actual": true,
+      "expect_sql": "ydsh_dwd.dim_pay_type",
+      "rewrite_ok": true,
+      "problems": [],
+      "sql_after": "SELECT p.pay_name, ROUND(SUM(o.pay_amount), 2) AS gmv\nFROM ydsh_dwd.dwd_order o\nJOIN ydsh_dwd.dim_pay_type p ON o.pay_type_code = p.pay_code\nGROUP BY p.pay_name\nLIMIT 200"
+    },
+    {
+      "case": "正例：CAST AS DECIMAL 里的 AS 不是别名",
+      "expect": true,
+      "actual": true,
+      "expect_sql": null,
+      "rewrite_ok": true,
+      "problems": [],
+      "sql_after": "SELECT dt, CAST(ROUND(SUM(gmv), 2) AS DECIMAL(18, 2)) AS gmv_day\nFROM ydsh_dws.dws_trade_day\nGROUP BY dt\nLIMIT 200"
+    },
+    {
+      "case": "正例：CTE（WITH 临时表不在白名单里）",
+      "expect": true,
+      "actual": true,
+      "expect_sql": null,
+      "rewrite_ok": true,
+      "problems": [],
+      "sql_after": "WITH m AS (SELECT dt, SUM(gmv) AS g\nFROM ydsh_dws.dws_trade_day GROUP BY dt)\nSELECT dt, g FROM m ORDER BY g DESC LIMIT 5"
+    },
+    {
+      "case": "正例：CASE WHEN 分桶",
+      "expect": true,
+      "actual": true,
+      "expect_sql": null,
+      "rewrite_ok": true,
+      "problems": [],
+      "sql_after": "SELECT CASE WHEN pay_amount >= 500 THEN 'high' ELSE 'low' END AS band,\n       COUNT(1) AS cnt\nFROM ydsh_dwd.dwd_order\nGROUP BY CASE WHEN pay_amount >= 500 THEN 'high' ELSE 'low' END\nLIMIT 200"
+    },
+    {
+      "case": "正例：子查询 + 外层别名前缀",
+      "expect": true,
+      "actual": true,
+      "expect_sql": null,
+      "rewrite_ok": true,
+      "problems": [],
+      "sql_after": "SELECT t.province, t.gmv FROM (\n  SELECT province, SUM(gmv) AS gmv FROM ydsh_ads.ads_region_sales GROUP BY province\n) t ORDER BY t.gmv DESC LIMIT 5"
+    },
+    {
+      "case": "正例：UNION ALL 两条 SELECT",
+      "expect": true,
+      "actual": true,
+      "expect_sql": null,
+      "rewrite_ok": true,
+      "problems": [],
+      "sql_after": "SELECT 'order' AS src, COUNT(1) AS c FROM ydsh_dwd.dwd_order\nUNION ALL\nSELECT 'store' AS src, COUNT(1) AS c FROM ydsh_dwd.dim_store\nLIMIT 200"
+    },
+    {
+      "case": "正例：三表 JOIN",
+      "expect": true,
+      "actual": true,
+      "expect_sql": null,
+      "rewrite_ok": true,
+      "problems": [],
+      "sql_after": "SELECT s.province, u.gender, SUM(o.pay_amount) AS gmv\nFROM ydsh_dwd.dwd_order o\nJOIN ydsh_dwd.dim_store s ON o.store_id = s.store_id\nJOIN ydsh_dwd.dim_user  u ON o.user_id  = u.user_id\nGROUP BY s.province, u.gender\nLIMIT 200"
+    },
+    {
+      "case": "错误：维度列挂在汇总表上（本次事故的反面）",
+      "expect": false,
+      "actual": false,
+      "expect_sql": null,
+      "rewrite_ok": true,
+      "problems": [
+        "列不在本次查询的表里：province 不属于 ydsh_dws.dws_trade_day（它只在 ydsh_ads.ads_region_sales、ydsh_ads.ads_store_rank、ydsh_dwd.dim_store、ydsh_dwd.dim_user）。按省份汇总直接用 ydsh_ads.ads_region_sales；按城市 / 门店用 ydsh_dws.dws_store_day JOIN ydsh_dwd.dim_store；不要给汇总表加维度列。当前表真实列名 → ydsh_dws.dws_trade_day(dt, gmv, order_cnt, user_cnt, store_cnt, discount_sum, cancel_cnt, aov)"
+      ],
+      "sql_after": "SELECT SUM(gmv) FROM ydsh_dws.dws_trade_day WHERE province LIKE '%广东%'\nLIMIT 200"
+    },
+    {
+      "case": "错误：dwd_order 没有 product_id",
+      "expect": false,
+      "actual": false,
+      "expect_sql": null,
+      "rewrite_ok": true,
+      "problems": [
+        "列不在本次查询的表里：product_id 不属于 ydsh_dwd.dwd_order（它只在 ydsh_dwd.dim_product）。只能用列出来的真实列名，不要自己造字段。当前表真实列名 → ydsh_dwd.dwd_order(order_id, user_id, store_id, order_timestamp, pay_amount, discount_amount, pay_type_code, order_status_code, channel_code, order_cnt, order_date, order_date)；ydsh_dwd.dim_product(product_id, product_name, category, sub_category, brand, price, cost, stock, status, launch_date)"
+      ],
+      "sql_after": "SELECT p.category FROM ydsh_dwd.dwd_order o JOIN ydsh_dwd.dim_product p ON o.product_id = p.product_id\nLIMIT 200"
+    },
+    {
+      "case": "错误：pay_code 挂在订单表上（编码在维表）",
+      "expect": false,
+      "actual": false,
+      "expect_sql": null,
+      "rewrite_ok": true,
+      "problems": [
+        "列不在本次查询的表里：pay_code 不属于 ydsh_dwd.dwd_order（它只在 ydsh_dwd.dim_pay_type）。只能用列出来的真实列名，不要自己造字段。当前表真实列名 → ydsh_dwd.dwd_order(order_id, user_id, store_id, order_timestamp, pay_amount, discount_amount, pay_type_code, order_status_code, channel_code, order_cnt, order_date, order_date)"
+      ],
+      "sql_after": "SELECT pay_code, COUNT(1) FROM ydsh_dwd.dwd_order GROUP BY pay_code\nLIMIT 200"
+    },
+    {
+      "case": "错误：成品表里查明细字段",
+      "expect": false,
+      "actual": false,
+      "expect_sql": null,
+      "rewrite_ok": true,
+      "problems": [
+        "列不在本次查询的表里：order_date 不属于 ydsh_ads.ads_region_sales（它只在 ydsh_dwd.dwd_order）。只能用列出来的真实列名，不要自己造字段。当前表真实列名 → ydsh_ads.ads_region_sales(province, order_cnt, user_cnt, gmv, aov, gmv_ratio)"
+      ],
+      "sql_after": "SELECT order_date FROM ydsh_ads.ads_region_sales\nLIMIT 200"
     }
   ]
 }

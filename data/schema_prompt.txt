@@ -27,7 +27,7 @@
    item_qty bigint  // 销售件数,
    avg_item_price double  // 件单价（元/件）
 
--- ydsh_ads.ads_user_segment（用户价值分层汇总（基于 RFM））
+-- ydsh_ads.ads_user_segment（用户价值分层汇总（基于 RFM 的价值分层，分层名如「重要价值用户」，**不是会员等级**；问会员等级要用 dim_user GROUP BY member_level_name））
    user_segment string  // 用户分层名称，如 重要价值用户,
    user_cnt bigint  // 该层用户数,
    user_share double  // 用户占比,
@@ -96,14 +96,14 @@
    cancel_cnt bigint  // 取消订单数,
    mom_rate double  // GMV 环比
 
--- ydsh_dws.dws_category_day（天×品类销售汇总，GMV 已按订单实付金额分摊；dt 是 yyyy-MM-dd，筛整月要写 dt LIKE '2024-06%'）
+-- ydsh_dws.dws_category_day（天×品类销售汇总，GMV 已按订单实付金额分摊；dt 是 yyyy-MM-dd，筛整月要写 dt LIKE '2024-06%'。**日粒度**：一个月约 250 行，要「6 月各品类」必须 GROUP BY category 求和，不要 GROUP BY dt）
    dt string  // 日期,
    category string  // 一级品类,
    order_cnt bigint  // 关联订单数,
    item_qty bigint  // 销售件数,
    gmv double  // 分摊后成交金额
 
--- ydsh_dws.dws_store_day（天×门店销售汇总）
+-- ydsh_dws.dws_store_day（天×门店销售汇总。**日粒度**：一家店一个月 30 行，问「各门店」要 GROUP BY store_id 求和，不要 GROUP BY dt。汇总时 aov 要重算 SUM(gmv)/SUM(order_cnt)，**不能 SUM(aov)**）
    dt string  // 日期,
    store_id string  // 门店编号,
    gmv double  // 成交总额,
@@ -111,7 +111,7 @@
    user_cnt bigint  // 下单用户数,
    aov double  // 客单价
 
--- ydsh_dws.dws_channel_day（天×渠道销售汇总，只有 channel_code 一个渠道维度）
+-- ydsh_dws.dws_channel_day（天×渠道销售汇总，只有 channel_code 一个渠道维度。**日粒度**：要汇总就 GROUP BY channel_code，不要 GROUP BY dt）
    dt string  // 日期,
    channel_code string  // 渠道编码（关联 dim_channel）,
    gmv double  // 成交总额,
@@ -159,3 +159,23 @@
 -- ydsh_dwd.dim_channel（渠道维度表）
    channel_code string  // 渠道编码,
    channel_name string  // 渠道名称
+
+-- ydsh_dwd.dim_pay_type（支付方式维度表，2 列。dwd_order.pay_type_code 关联 pay_code 取中文名）
+   pay_code string  // 支付方式编码，与 dwd_order.pay_type_code 同值,
+   pay_name string  // 支付方式名称，如 微信支付 / 支付宝
+
+-- ydsh_dwd.dim_order_status（订单状态维度表。dwd_order.order_status_code 关联 status_code）
+   status_code string  // 状态编码，与 dwd_order.order_status_code 同值，如 OS04,
+   status_name string  // 状态名称，如 已取消,
+   is_finished int  // 是否已完成状态，1 是 0 否
+
+-- ydsh_dwd.dim_user（用户维度表。province / city 是**用户**所在地区（不是门店），15 省合计等于全站 GMV，口径与 ads_region_sales 一致）
+   user_id string  // 用户编号，关联 dwd_order.user_id,
+   gender string  // 性别,
+   age int  // 年龄,
+   province string  // 用户所在省份，带「省/市」后缀，过滤用 LIKE '%广东%',
+   city string  // 用户所在城市，带后缀,
+   region string  // 用户所在大区,
+   register_date string  // 注册日期 yyyy-MM-dd,
+   member_level_code string  // 会员等级编码,
+   member_level_name string  // 会员等级名称
